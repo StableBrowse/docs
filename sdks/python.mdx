@@ -1,0 +1,167 @@
+---
+title: "Python SDK"
+description: "The stablebrowse Python client: `pip install stablebrowse`"
+---
+
+## Install
+
+```bash
+pip install stablebrowse
+```
+
+Python 3.9+ required. Depends only on [httpx](https://www.python-httpx.org/).
+
+## Configuration
+
+```python
+from stablebrowse import Stablebrowse
+
+# Explicit
+client = Stablebrowse(api_key="sb_live_...")
+
+# Or read from env:
+#   STABLEBROWSE_API_KEY   — the bearer token
+#   STABLEBROWSE_BASE_URL  — override API base (useful for beta / local)
+client = Stablebrowse()
+```
+
+## Running tasks
+
+The sync-feeling happy path: submit + poll in one call.
+
+```python
+result = client.tasks.run(
+    end_user_id="alice",
+    task="Give me the top 3 Show HN posts from today",
+)
+print(result.result)
+```
+
+`run()` blocks until the task terminates. If you'd rather drive the poll loop yourself (for progress UI, concurrent submission, etc.):
+
+```python
+submission = client.tasks.submit(end_user_id="alice", task="...")
+import time
+while True:
+    task = client.tasks.get(submission.task_id)
+    if task.is_terminal:
+        break
+    time.sleep(2)
+print(task.result)
+```
+
+### All task options
+
+```python
+result = client.tasks.run(
+    end_user_id="alice",
+    task="Summarize this article",
+    session_id="s_abc...",               # optional, continue existing session
+    start_url="https://example.com/x",   # optional, skip agent URL-discovery
+    schema={"type": "object", ...},      # optional, structured output
+    max_steps=10,                        # optional, agent step cap (≤ 25)
+    include_html_dump=True,              # optional, return raw HTML
+    poll_interval=2,                     # optional, how often to poll (seconds)
+    poll_timeout=300,                    # optional, give-up threshold (seconds)
+)
+```
+
+## Sessions / follow-ups
+
+```python
+first = client.tasks.run(end_user_id="alice", task="Who's trending on HN?")
+follow = client.tasks.run(
+    end_user_id="alice",
+    task="What's the score on the top one?",
+    session_id=first.session_id,
+)
+```
+
+Fetch every turn in a session:
+
+```python
+session = client.sessions.get(first.session_id)
+for t in session.tasks:
+    print(t.status, t.task)
+```
+
+## End-user credentials
+
+```python
+# Upload (idempotent upsert — only touches platforms you pass)
+client.end_users("alice").credentials.set(
+    twitter_auth_token="...",
+    twitter_ct0="...",
+)
+
+# Status (never returns secrets)
+status = client.end_users("alice").credentials.get()
+assert status.platforms["twitter"] is True
+
+# Clear some fields or everything
+client.end_users("alice").credentials.delete(
+    fields=["twitter_auth_token", "twitter_ct0"],
+)
+client.end_users("alice").credentials.delete()  # wipe all
+```
+
+Python uses `snake_case` keyword arguments; the SDK maps them to the API's `camelCase` field names on the wire.
+
+## API key admin (Cognito JWT only)
+
+These methods work only when the `api_key` you pass is actually a Cognito JWT from the [dashboard](https://main.dxljyf58fkcrt.amplifyapp.com). Most customers use the dashboard UI directly and never call these.
+
+```python
+keys = client.api_keys.list()
+new = client.api_keys.create(label="production")
+print("save this, you won't see it again:", new.secret)
+client.api_keys.revoke(new.prefix)
+```
+
+## Exceptions
+
+```python
+from stablebrowse import StablebrowseError, TaskFailed, TaskTimeout
+
+try:
+    result = client.tasks.run(end_user_id="alice", task="...")
+except TaskFailed as e:
+    print("Agent reported failure:", e.task.error)
+except TaskTimeout as e:
+    print("Poll deadline reached, task still", e.task.status)
+except StablebrowseError as e:
+    print("HTTP/transport error:", e.status_code, e.body)
+```
+
+- `TaskFailed` and `TaskTimeout` both extend `StablebrowseError` and carry the (failed / in-progress) `Task` record on `.task`.
+- `StablebrowseError` for everything else — catch this for a blanket handler.
+
+## Typed results
+
+Every response model is a lightweight `@dataclass` with typed fields. Unknown fields from the server are preserved on `.raw` so a server-side addition doesn't break your client:
+
+```python
+task = client.tasks.get(tid)
+print(task.status)            # typed
+print(task.result)             # typed (str | dict)
+print(task.raw["some_new_field"])  # any future field the server adds
+```
+
+## Version pinning
+
+The SDK follows semver:
+
+- `0.x.y` — API may change on minor bumps. Pin conservatively while we stabilize.
+- `1.x.y` — breaking changes only on major bumps (post-1.0).
+
+```
+# requirements.txt — pin to latest patch in 0.1.x
+stablebrowse ~= 0.1.0
+
+# Or pin exactly for reproducibility
+stablebrowse == 0.1.2
+```
+
+## Source
+
+Package source lives on [PyPI](https://pypi.org/project/stablebrowse/). The full client is a thin wrapper over the HTTP API — if you hit a bug or want a feature, reach out at [team@stablebrowse.ai](mailto:team@stablebrowse.ai).

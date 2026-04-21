@@ -1,0 +1,109 @@
+---
+title: "Errors"
+description: "HTTP status codes the API returns, what they mean, and how to handle them."
+---
+
+Every error response carries a JSON body with a `.error` field:
+
+```json
+{ "error": "Human-readable description" }
+```
+
+## HTTP status codes
+
+<AccordionGroup>
+  <Accordion title="400 Bad Request">
+    **What it means:** the server understood the route but your request body or path params were invalid.
+
+    **Common causes:**
+    - Missing `task` or `endUserId` on `POST /v1/tasks`
+    - Blank `task` string (empty or whitespace-only)
+    - `endUserId` longer than 256 characters
+    - Malformed JSON body
+    - Invalid `fields` list on `DELETE credentials`
+
+    **What to do:** read the `error` message, fix your request, retry.
+  </Accordion>
+
+  <Accordion title="401 Unauthorized">
+    **What it means:** no `Authorization` header, or the token isn't the right type for the endpoint.
+
+    **Common causes:**
+    - Header omitted entirely
+    - Expired Cognito JWT — re-authenticate via the dashboard
+    - You presented an API key to `/v1/api-keys` (which is JWT-only by design)
+
+    **What to do:** mint a fresh token / API key and retry.
+  </Accordion>
+
+  <Accordion title="403 Forbidden">
+    **What it means:** the token was recognized but denied.
+
+    **Common causes:**
+    - API key has been revoked
+    - Attempting to read/write resources belonging to another business
+    - Attempting to submit a follow-up into a `sessionId` that isn't yours
+    - Attempting to use an API key on a dashboard-only route (`/v1/api-keys`)
+
+    **What to do:** revoked keys aren't recoverable — mint a new one. Cross-tenant denial is intentional; there's no way around it.
+  </Accordion>
+
+  <Accordion title="404 Not Found">
+    **What it means:** the resource doesn't exist, or it does but you don't own it (we deliberately don't distinguish the two).
+
+    **Common causes:**
+    - Unknown `taskId` on `GET /v1/tasks/{taskId}`
+    - Unknown `sessionId` on `GET /v1/sessions/{sessionId}`
+    - API-key `prefix` that was never issued, or belongs to another business
+
+    **What to do:** double-check the ID and confirm it belongs to the caller's business.
+  </Accordion>
+
+  <Accordion title="405 Method Not Allowed">
+    **What it means:** wrong HTTP verb for the endpoint.
+
+    **What to do:** check the endpoint doc for the allowed verbs.
+  </Accordion>
+
+  <Accordion title="429 Too Many Requests">
+    **What it means:** rate-limit or quota threshold crossed.
+
+    **What to do:** back off and retry with exponential delay. The response body indicates which limit was hit.
+  </Accordion>
+
+  <Accordion title="500 Internal Server Error">
+    **What it means:** our bug.
+
+    **What to do:** retry with exponential backoff (we often recover within seconds). If it persists, report to [team@stablebrowse.ai](mailto:team@stablebrowse.ai) with the timestamp and (ideally) the request ID from response headers.
+  </Accordion>
+</AccordionGroup>
+
+## Task-level errors
+
+A task that reaches `status: "failed"` carries an `error` string explaining what went wrong. This is distinct from the HTTP error codes above — the API call itself succeeded (`GET /v1/tasks/{id}` returns 200), but the underlying agent run didn't produce a useful answer. Common patterns:
+
+| Symptom on `task.error` | Likely cause |
+| --- | --- |
+| `"Task timed out (3 minute limit)"` | The agent used up its full step/time budget without reaching a `done` state |
+| `"<platform> authentication is required. All <platform> tools need valid login credentials"` | You ran a task targeting a credentialed platform before uploading the end-user's cookies. Resolution: upload via [`PUT credentials`](/api-reference/end-users/set-credentials) and try again |
+| `"Failed to enqueue task: ..."` | We couldn't send to our internal queue. Rare. Retry; if persistent, email us |
+
+## SDK exceptions
+
+The Python and TypeScript SDKs map HTTP errors into a typed exception hierarchy. See [Python SDK → Exceptions](/sdks/python#exceptions) and [TypeScript SDK → Exceptions](/sdks/typescript#exceptions).
+
+```python
+from stablebrowse import StablebrowseError, TaskFailed, TaskTimeout
+```
+
+All three exceptions derive from `StablebrowseError`. `TaskFailed` and `TaskTimeout` both carry the underlying task on `.task` for inspection.
+
+## Retry guidance
+
+| Status | Retry? |
+| --- | --- |
+| `400`, `401`, `403`, `404`, `405` | No — fix the request |
+| `429` | Yes, with exponential backoff |
+| `500`, `502`, `503`, `504` | Yes, with exponential backoff (max 3-5 retries) |
+
+For `tasks.run` specifically, the SDKs' built-in polling handles transient 5xx on `GET /v1/tasks/{id}`. You don't need to implement retries for the polling loop itself.

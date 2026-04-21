@@ -1,11 +1,12 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "stablebrowse",
+  "description": "The stablebrowse B2B API — agentic browser automation for your product.",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#2563EB",
+    "light": "#60A5FA",
+    "dark": "#1E40AF"
   },
   "favicon": "/favicon.svg",
   "navigation": {
@@ -15,35 +16,25 @@
         "groups": [
           {
             "group": "Getting started",
+            "pages": ["introduction", "quickstart", "authentication"]
+          },
+          {
+            "group": "Concepts",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "concepts/businesses",
+              "concepts/end-users",
+              "concepts/sessions",
+              "concepts/tasks",
+              "concepts/platforms"
             ]
           },
           {
-            "group": "Customization",
-            "pages": [
-              "essentials/settings",
-              "essentials/navigation"
-            ]
+            "group": "SDKs",
+            "pages": ["sdks/python", "sdks/typescript"]
           },
           {
-            "group": "Writing content",
-            "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
-            ]
-          },
-          {
-            "group": "AI tools",
-            "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
-            ]
+            "group": "Reference",
+            "pages": ["errors", "changelog"]
           }
         ]
       },
@@ -51,18 +42,35 @@
         "tab": "API reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Overview",
+            "pages": ["api-reference/introduction"]
+          },
+          {
+            "group": "Tasks",
             "pages": [
-              "api-reference/introduction"
+              "api-reference/tasks/submit",
+              "api-reference/tasks/get",
+              "api-reference/tasks/list"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "Sessions",
+            "pages": ["api-reference/sessions/get"]
+          },
+          {
+            "group": "End users",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api-reference/end-users/set-credentials",
+              "api-reference/end-users/get-credentials",
+              "api-reference/end-users/delete-credentials"
+            ]
+          },
+          {
+            "group": "API keys",
+            "pages": [
+              "api-reference/api-keys/create",
+              "api-reference/api-keys/list",
+              "api-reference/api-keys/revoke"
             ]
           }
         ]
@@ -70,53 +78,24 @@
     ],
     "global": {
       "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
+        { "anchor": "GitHub", "href": "https://github.com/StableBrowse", "icon": "github" }
       ]
     }
   },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
+  "logo": { "light": "/logo/light.svg", "dark": "/logo/dark.svg" },
   "navbar": {
     "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
+      { "label": "Support", "href": "mailto:team@stablebrowse.ai" }
     ],
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
+      "href": "https://main.dxljyf58fkcrt.amplifyapp.com"
     }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/StableBrowse"
     }
   }
 }

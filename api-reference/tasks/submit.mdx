@@ -1,0 +1,111 @@
+---
+title: "Submit task"
+api: "POST /v1/tasks"
+description: "Submit a new task. Returns immediately with a taskId; poll GET /v1/tasks/{taskId} for the result."
+---
+
+## Request body
+
+<ParamField body="endUserId" type="string" required>
+  Opaque identifier for the user this task runs on behalf of. See [End users](/concepts/end-users). Must be ≤ 256 characters.
+</ParamField>
+
+<ParamField body="task" type="string" required>
+  The natural-language prompt. Must be non-empty after trimming.
+</ParamField>
+
+<ParamField body="sessionId" type="string">
+  Pass a previous task's `sessionId` to continue a conversation. Omit to start a new session (server mints one and returns it).
+</ParamField>
+
+<ParamField body="startUrl" type="string">
+  If you know the specific page to start from, pass the URL. Skips the agent's URL-discovery step.
+</ParamField>
+
+<ParamField body="schema" type="object">
+  A JSON Schema describing the shape of structured data you want back. When set, the completed task's `structured_content` field contains the conforming object.
+</ParamField>
+
+<ParamField body="maxSteps" type="number" default="25">
+  Upper bound on agent steps before the task is forced to finalize. Server clamps to `min(maxSteps, 25)`.
+</ParamField>
+
+<ParamField body="include_html_dump" type="boolean" default="false">
+  If true, the last page's raw HTML is returned on the final task record as `html_dump`.
+</ParamField>
+
+## Response — `201 Created`
+
+<ResponseField name="taskId" type="string">
+  Newly-created task identifier.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  Either the session you passed in, or a newly-minted one if you omitted `sessionId`.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Always `"pending"` on submission. Poll `GET /v1/tasks/{taskId}` for terminal state.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string (ISO 8601)">
+  Task creation timestamp.
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```bash curl
+curl "$API_BASE/tasks" -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "endUserId": "alice",
+    "task": "What is the current top story on Hacker News?"
+  }'
+```
+
+```python Python
+from stablebrowse import Stablebrowse
+client = Stablebrowse()
+
+submission = client.tasks.submit(
+    end_user_id="alice",
+    task="What is the current top story on Hacker News?",
+)
+print(submission.task_id)
+```
+
+```typescript TypeScript
+import { Stablebrowse } from "@stablebrowse/client";
+const client = new Stablebrowse();
+
+const submission = await client.tasks.submit({
+  endUserId: "alice",
+  task: "What is the current top story on Hacker News?",
+});
+console.log(submission.taskId);
+```
+</CodeGroup>
+
+```json Response
+{
+  "taskId": "7f2a...",
+  "sessionId": "a31d...",
+  "status": "pending",
+  "createdAt": "2026-04-21T04:55:34Z"
+}
+```
+
+<Tip>
+  The Python and TypeScript SDKs also offer `tasks.run(...)` which submits + polls + returns the completed task in one call. Prefer it over `submit` + manual polling unless you're building your own streaming UI.
+</Tip>
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `400` | `task` missing or empty, `endUserId` missing or > 256 chars, invalid JSON body, `sessionId` owned by another business |
+| `401` | Missing `Authorization` header |
+| `403` | Revoked API key, or attempt to submit into another business's `sessionId` |
+| `429` | Rate limit or quota exceeded; see the response body for specifics |

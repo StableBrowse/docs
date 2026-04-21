@@ -1,0 +1,51 @@
+---
+title: "Changelog"
+description: "Release history for the API and SDKs."
+---
+
+## 2026-04-21 — `0.1.2`
+
+Patch release. Behavior changes:
+
+- **TypeScript SDK**: added `"default"` condition to the package's `exports` map so tools like `tsx` can resolve `@stablebrowse/client` from `.ts` files. No behavioral change when imported from `.mjs` / via bundlers.
+- **Python SDK**: version bump only (kept in lockstep with TS for sanity).
+
+Install:
+
+```
+pip install stablebrowse==0.1.2
+npm install @stablebrowse/client@0.1.2
+```
+
+## 2026-04-19 — `0.1.0` (initial release)
+
+First public release of the stablebrowse B2B API and SDKs.
+
+**API**
+
+- `POST /v1/tasks` — submit an agent task on behalf of an end-user
+- `GET /v1/tasks/{taskId}` — poll for task status and result
+- `GET /v1/tasks` — list sessions owned by the caller
+- `GET /v1/sessions/{sessionId}` — full multi-turn conversation history
+- `PUT/GET/DELETE /v1/end-users/{endUserId}/credentials` — per-end-user social-media cookies, KMS-encrypted at rest
+- `POST/GET/DELETE /v1/api-keys` — dashboard-only key management
+
+**SDKs**
+
+- Python: `pip install stablebrowse` (3.9+, httpx)
+- TypeScript: `npm install @stablebrowse/client` (Node 18+, zero runtime deps)
+
+Both expose the same resource-grouped surface (`client.tasks`, `client.sessions`, `client.endUsers(id)`, `client.apiKeys`) and a sync-feeling `tasks.run(...)` that hides the poll loop.
+
+**Supported platforms**
+
+- Fast-path lookups (no creds): Hacker News, Wikipedia, Stack Overflow, Steam, Yelp, Amazon, Airbnb, Craigslist, GitHub, Google Flights, LeetCode, Redfin, Starbucks, Uber, Walmart, Zillow
+- Authenticated: Twitter, Reddit, TikTok, YouTube, Instagram, LinkedIn, DoorDash
+- Fallback: full-browser agent for any public site
+
+## Versioning policy
+
+- **`0.x.y`** — behavior may change on any minor bump (0.1 → 0.2). Pin conservatively.
+- **`1.0.0`** — stable. Breaking changes only on major bumps.
+
+We publish release notes here for every tagged version. For larger architecture changes or migration paths, we'll add a dedicated migration guide.

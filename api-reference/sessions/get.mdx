@@ -1,0 +1,60 @@
+---
+title: "Get session"
+api: "GET /v1/sessions/{sessionId}"
+description: "Fetch every task in a session, in chronological order."
+---
+
+## Path parameters
+
+<ParamField path="sessionId" type="string" required>
+  The session identifier (returned by [`POST /v1/tasks`](/api-reference/tasks/submit)).
+</ParamField>
+
+## Response — `200 OK`
+
+<ResponseField name="sessionId" type="string">
+  Echoed session identifier.
+</ResponseField>
+
+<ResponseField name="tasks" type="Task[]">
+  All tasks in the session, ordered by `createdAt` ascending. Each task has the same shape as [`GET /v1/tasks/{taskId}`](/api-reference/tasks/get).
+</ResponseField>
+
+## Example
+
+<CodeGroup>
+```bash curl
+curl "$API_BASE/sessions/a31d..." \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+```python Python
+session = client.sessions.get("a31d...")
+print(f"{len(session.tasks)} turns in session {session.session_id}")
+for t in session.tasks:
+    print(f"  [{t.task_id[:8]}] {t.status}: {t.task}")
+```
+
+```typescript TypeScript
+const session = await client.sessions.get("a31d...");
+console.log(`${session.tasks.length} turns in session ${session.sessionId}`);
+for (const t of session.tasks) {
+  console.log(`  [${t.taskId.slice(0, 8)}] ${t.status}: ${t.task}`);
+}
+```
+</CodeGroup>
+
+## Use cases
+
+- **Rebuild chat UI state** after a page reload
+- **Audit / support**: inspect what your end-user actually asked
+- **Customer-facing history pages** — show your users their own conversation log
+- **Analytics**: compute per-session summaries from the full turn list
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `401` | Missing `Authorization` header |
+| `403` | Session belongs to another business |
+| `404` | Unknown `sessionId`, or session has zero tasks |

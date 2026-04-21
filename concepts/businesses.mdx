@@ -1,0 +1,36 @@
+---
+title: "Businesses"
+description: "A business is the paying-customer account — that's you."
+---
+
+## The idea
+
+A **business** is the top of the stablebrowse identity hierarchy. It represents the entity we bill and trust — the paying customer. Everything else hangs off it: API keys, end-users, sessions, tasks, credentials.
+
+```
+business (you)
+  ├── api_keys[]       — one or many, independently revokable
+  └── end_users[]      — your users, scoped to you
+       └── sessions[]  — their multi-turn conversations
+            └── tasks[] — individual agent runs
+```
+
+## When a business gets created
+
+- **Automatically**, the first time you log into the dashboard with a Cognito account. Your business is minted with `businessId` = your Cognito user id.
+- You don't create or manage business rows yourself. They're 1:1 with your signup.
+
+## What's stored on a business
+
+- **Stable identifier** (`businessId`, a UUID) — never changes, used as the foreign key everywhere else.
+- **Contact email** — captured from your signup account.
+- **Plan** — which tier you're on.
+
+## Isolation
+
+Two businesses with the same `endUserId` (say both use `"alice"`) are **completely separate**. The composite key `(businessId, endUserId)` scopes every end-user and their credentials to your business. No cross-tenant reads; attempts return `403 Forbidden`.
+
+## What businesses don't do
+
+- **Businesses don't authenticate directly.** The API always sees either an API key (which resolves to a business) or a dashboard JWT (which also resolves to a business). There's no "business password" or "business token" — only the API keys under it.
+- **You don't pass businessId in requests.** It's inferred from whichever credential you used. Requests reference end-users, sessions, and tasks by their own ids.

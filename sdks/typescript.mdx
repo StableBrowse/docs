@@ -1,0 +1,163 @@
+---
+title: "TypeScript SDK"
+description: "The stablebrowse TypeScript client: `npm install @stablebrowse/client`"
+---
+
+## Install
+
+```bash
+npm install @stablebrowse/client
+```
+
+Node 18+ required. Uses native `fetch` — no runtime dependencies. Works in Node, Deno, Cloudflare Workers, Bun, modern browsers.
+
+## Configuration
+
+```ts
+import { Stablebrowse } from "@stablebrowse/client";
+
+// Explicit
+const client = new Stablebrowse({ apiKey: "sb_live_..." });
+
+// Or read from env (Node only):
+//   STABLEBROWSE_API_KEY   — the bearer token
+//   STABLEBROWSE_BASE_URL  — override API base
+const client = new Stablebrowse();
+```
+
+## Running tasks
+
+```ts
+const result = await client.tasks.run({
+  endUserId: "alice",
+  task: "Give me the top 3 Show HN posts from today",
+});
+console.log(result.result);
+```
+
+`run()` submits + polls internally. For manual control:
+
+```ts
+const submission = await client.tasks.submit({
+  endUserId: "alice",
+  task: "...",
+});
+while (true) {
+  const task = await client.tasks.get(submission.taskId);
+  if (["completed", "failed", "cancelled"].includes(task.status)) break;
+  await new Promise(r => setTimeout(r, 2000));
+}
+console.log(task.result);
+```
+
+### All task options
+
+```ts
+const result = await client.tasks.run({
+  endUserId: "alice",
+  task: "Summarize this article",
+  sessionId: "s_abc...",                // continue existing session
+  startUrl: "https://example.com/x",    // skip URL-discovery
+  schema: { type: "object" /* ... */ }, // structured output
+  maxSteps: 10,                         // ≤ 25, server-clamped
+  includeHtmlDump: true,                // return raw HTML
+  pollIntervalMs: 2000,
+  pollTimeoutMs: 300_000,
+});
+```
+
+## Sessions / follow-ups
+
+```ts
+const first = await client.tasks.run({
+  endUserId: "alice",
+  task: "Who's trending on HN?",
+});
+const follow = await client.tasks.run({
+  endUserId: "alice",
+  task: "What's the score on the top one?",
+  sessionId: first.sessionId,
+});
+```
+
+Fetch every turn:
+
+```ts
+const session = await client.sessions.get(first.sessionId!);
+for (const t of session.tasks) {
+  console.log(t.status, t.task);
+}
+```
+
+## End-user credentials
+
+```ts
+// Upload — only platforms you pass are touched
+await client.endUsers("alice").credentials.set({
+  twitterAuthToken: "...",
+  twitterCt0: "...",
+});
+
+// Status (never returns secrets)
+const status = await client.endUsers("alice").credentials.get();
+// status.platforms.twitter === true
+
+// Clear
+await client.endUsers("alice").credentials.delete(["twitterAuthToken", "twitterCt0"]);
+await client.endUsers("alice").credentials.delete();  // wipe all
+```
+
+## API key admin (Cognito JWT only)
+
+```ts
+const keys = await client.apiKeys.list();
+const newKey = await client.apiKeys.create("production");
+console.log("save this, you won't see it again:", newKey.secret);
+await client.apiKeys.revoke(newKey.prefix);
+```
+
+## Exceptions
+
+```ts
+import { StablebrowseError, TaskFailed, TaskTimeout } from "@stablebrowse/client";
+
+try {
+  const result = await client.tasks.run({ endUserId: "alice", task: "..." });
+} catch (e) {
+  if (e instanceof TaskFailed) {
+    console.log("Agent reported failure:", e.task.error);
+  } else if (e instanceof TaskTimeout) {
+    console.log("Poll deadline reached, task still", e.task.status);
+  } else if (e instanceof StablebrowseError) {
+    console.log("HTTP/transport error:", e.statusCode, e.body);
+  } else {
+    throw e;
+  }
+}
+```
+
+## Typed results
+
+Every response type is a plain interface. Unknown server fields are preserved on `.raw` so future additions don't break you:
+
+```ts
+const task = await client.tasks.get(taskId);
+task.status;                // typed
+task.result;                // typed
+(task.raw as any).someNewField;  // future-proof
+```
+
+## Version pinning
+
+The SDK follows semver. During 0.x.y, API may change on minor bumps. Pin conservatively:
+
+```jsonc
+// package.json
+"dependencies": {
+  "@stablebrowse/client": "^0.1.2"  // patches only
+}
+```
+
+## Source
+
+Published on [npm](https://www.npmjs.com/package/@stablebrowse/client). Issues and feature requests to [team@stablebrowse.ai](mailto:team@stablebrowse.ai).

@@ -1,0 +1,76 @@
+---
+title: "List API keys"
+api: "GET /v1/api-keys"
+description: "List all keys (active and revoked) for your business."
+---
+
+<Note>
+  Dashboard JWT only. API keys cannot list sibling keys by design.
+</Note>
+
+## Response — `200 OK`
+
+<ResponseField name="keys" type="ApiKey[]">
+  Every key owned by the calling business, most-recent-first. Secrets are never returned.
+</ResponseField>
+
+Each `ApiKey` contains:
+
+<ResponseField name="keyId" type="string">
+  Same value as `prefix`. Used on `DELETE`.
+</ResponseField>
+
+<ResponseField name="prefix" type="string">
+  Safe-to-display identifier, e.g. `sb_live_Pq778jCf`.
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  The label set at creation time, if any.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string (ISO 8601)" />
+
+<ResponseField name="lastUsedAt" type="string (ISO 8601)">
+  Updated best-effort on every successful auth. `null` if the key has never been used.
+</ResponseField>
+
+<ResponseField name="revokedAt" type="string (ISO 8601)">
+  Non-null means the key is revoked and returns 403 on every request.
+</ResponseField>
+
+## Example
+
+```bash
+curl "$API_BASE/api-keys" \
+  -H "Authorization: Bearer $COGNITO_JWT"
+```
+
+```json Response (200)
+{
+  "keys": [
+    {
+      "keyId": "sb_live_Pq778jCf",
+      "prefix": "sb_live_Pq778jCf",
+      "label": "production",
+      "createdAt": "2026-04-21T...",
+      "lastUsedAt": "2026-04-21T...",
+      "revokedAt": null
+    },
+    {
+      "keyId": "sb_live_oldKey1",
+      "prefix": "sb_live_oldKey1",
+      "label": "deprecated",
+      "createdAt": "2026-03-10T...",
+      "lastUsedAt": "2026-04-02T...",
+      "revokedAt": "2026-04-15T..."
+    }
+  ]
+}
+```
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `401` | Missing `Authorization` header, or JWT expired / invalid |
+| `403` | Used an API key instead of a Cognito JWT |

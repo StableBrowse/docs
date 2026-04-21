@@ -1,0 +1,100 @@
+---
+title: "Sessions"
+description: "A session groups related tasks into a conversation so follow-up questions work naturally."
+---
+
+## The idea
+
+A **session** is stablebrowse's unit of conversation. It's a sequence of tasks ("turns") where each turn gets the prior turn's result as context. Analogous to an OpenAI thread, an Anthropic conversation, or a chat-window history.
+
+```
+session s_abc
+  ├── task t_1   "Who's trending on X today?"         ← first message
+  ├── task t_2   "What about in music specifically?"  ← follow-up, uses t_1's answer as context
+  └── task t_3   "Which of those are indie artists?"  ← uses t_2's answer
+```
+
+## Server mints the ID, you pass it back
+
+Don't generate `sessionId` on your side. Just omit it on the first call — the server returns a UUID. Include that UUID on subsequent calls to continue the conversation.
+
+<CodeGroup>
+```python Python
+first = client.tasks.run(
+    end_user_id="alice",
+    task="Who's trending on X today?",
+)
+print(first.session_id)  # → "s_abc..."  (server-minted)
+
+follow_up = client.tasks.run(
+    end_user_id="alice",
+    task="What about in music specifically?",
+    session_id=first.session_id,
+)
+```
+
+```typescript TypeScript
+const first = await client.tasks.run({
+  endUserId: "alice",
+  task: "Who's trending on X today?",
+});
+console.log(first.sessionId);  // → "s_abc..."
+
+const followUp = await client.tasks.run({
+  endUserId: "alice",
+  task: "What about in music specifically?",
+  sessionId: first.sessionId,
+});
+```
+</CodeGroup>
+
+## What actually flows across turns
+
+Under the hood each turn is a fresh agent run — **the browser is not persistent**. What IS preserved:
+
+1. **`previousContext`** — the last completed turn's `result` is injected into the new turn's system prompt (capped at 8 KB to keep the context window manageable). The agent "knows" what was answered before.
+2. **`previousError`** — if any prior turn in the session had `status: "failed"`, the error messages are passed forward so the agent doesn't retry the same broken approach.
+3. **End-user credentials** — same end-user, so Twitter/etc cookies carry through.
+
+Between turns, Chrome is torn down and restarted. That's intentional: it keeps each turn idempotent and sized to a predictable step budget.
+
+## New conversation vs. follow-up
+
+| Intent | What to send |
+| --- | --- |
+| Start a new conversation | `sessionId` omitted — server mints a new one |
+| Continue an existing one | Pass the previous turn's `sessionId` |
+| Start over with the same end-user | Omit `sessionId` again. The old session is orphaned but not deleted (you can still `GET /v1/sessions/{old-id}` to browse it). |
+
+## Parallel sessions per end-user
+
+An end-user can have N sessions open simultaneously. Alice's "sports news" conversation and her "recipe research" conversation are separate `sessionId`s and won't contaminate each other. **Your app** keeps track of which `sessionId` is "the current chat window" for each UI; stablebrowse doesn't need to know.
+
+## Inspecting a session
+
+<CodeGroup>
+```python Python
+session = client.sessions.get("s_abc...")
+print(f"{len(session.tasks)} turns")
+for i, t in enumerate(session.tasks, 1):
+    print(f"  [{i}] {t.status}  {t.task[:60]}")
+```
+
+```typescript TypeScript
+const session = await client.sessions.get("s_abc...");
+console.log(`${session.tasks.length} turns`);
+session.tasks.forEach((t, i) => {
+  console.log(`  [${i + 1}] ${t.status}  ${t.task.slice(0, 60)}`);
+});
+```
+</CodeGroup>
+
+Returns the full task list in chronological order. Useful for:
+
+- Rebuilding UI state after a reload
+- Support / audit ("what did my customer ask yesterday?")
+- Showing your users their own conversation history
+
+## Concurrency note
+
+If you fire two follow-ups in the same session before the first completes, both will use the same `previousContext` (the latest completed turn at the time each one lands). The in-flight turn is **not** seen by the later one. This is rarely a problem in practice — serialize on your side if you need strict ordering.

@@ -1,0 +1,77 @@
+---
+title: "Authentication"
+description: "How API keys work and how to manage them."
+---
+
+## The auth model in one paragraph
+
+Every request to the stablebrowse API includes an `Authorization: Bearer sb_live_...` header. The key maps to **your business** — the paying customer account. It doesn't identify individual end-users; that's a separate field you pass on each request (see [End users](/concepts/end-users)). Keys are independent: rotate or revoke one without affecting the others.
+
+## Mint a key
+
+Via the dashboard (recommended):
+
+1. Sign in to [the dashboard](https://main.dxljyf58fkcrt.amplifyapp.com)
+2. Open **Settings**
+3. In **API Keys**, click **Create API key**
+4. Optional: give it a label like `production` or `staging-us-east`
+5. Copy the `sb_live_...` value shown in the banner
+
+<Warning>
+  The full secret is shown **exactly once**. Save it somewhere secure immediately — we only store a hash, so if you lose it, you'll need to mint a new key and revoke the old one.
+</Warning>
+
+## Use it
+
+Set the key as a header on every request:
+
+<CodeGroup>
+```bash curl
+curl "$API_BASE/tasks" \
+  -H "Authorization: Bearer sb_live_..."
+```
+
+```python Python SDK
+from stablebrowse import Stablebrowse
+client = Stablebrowse(api_key="sb_live_...")
+# Or read from env: client = Stablebrowse()  (reads STABLEBROWSE_API_KEY)
+```
+
+```typescript TypeScript SDK
+import { Stablebrowse } from "@stablebrowse/client";
+const client = new Stablebrowse({ apiKey: "sb_live_..." });
+// Or read from env: new Stablebrowse()  (reads STABLEBROWSE_API_KEY)
+```
+</CodeGroup>
+
+## Rotate a key
+
+The safest pattern is a brief period where both old and new keys are live:
+
+1. In the dashboard, **Create** a new key
+2. Roll the new secret out to your deploys / env vars
+3. Once traffic is confirmed working on the new key, **Revoke** the old one
+
+## Revoke a key
+
+Dashboard: **Settings → API Keys → Revoke** on the key's row.
+
+A revoked key starts returning `403 Forbidden` immediately on every request. Other keys keep working. **Revocation is irreversible** — if you revoked by mistake, just mint a new one.
+
+## What keys can and can't do
+
+| Action | API key | Dashboard / Cognito JWT |
+| --- | --- | --- |
+| `POST /v1/tasks` | ✓ | ✓ |
+| `GET /v1/tasks/{taskId}`, `GET /v1/tasks`, `GET /v1/sessions/{id}` | ✓ | ✓ |
+| `PUT`/`GET`/`DELETE /v1/end-users/{id}/credentials` | ✓ | ✓ |
+| `POST`/`GET`/`DELETE /v1/api-keys` (key management) | ✗ (403) | ✓ |
+
+We deliberately refuse API keys on the key-management endpoints so a leaked key can't mint more keys to entrench itself. Key lifecycle is a dashboard-only operation.
+
+## Best practices
+
+- **Never commit keys to git.** Use env vars, secret managers (AWS Secrets Manager, Doppler, 1Password CLI, etc.), or your platform's secret store.
+- **One key per environment.** `production`, `staging`, `local-dev-alice`. Makes rotation and revocation painless.
+- **Don't share keys across integrations.** If you're running a cron and a web backend, give each its own key labeled accordingly — that way the dashboard's `lastUsedAt` column tells you which integration is active.
+- **On suspicion of leak, revoke immediately and mint a new one.** Faster than investigating; cheap to do.

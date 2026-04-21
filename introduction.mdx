@@ -1,0 +1,54 @@
+---
+title: "Introduction"
+description: "stablebrowse is agentic browser automation delivered as an API. Give it natural language, get structured data."
+---
+
+## What it does
+
+You send a prompt like _"find the top 5 trending tech posts on Reddit right now"_, and stablebrowse spins up a real browser, navigates the web the way a human would, and returns the answer. No selectors, no scraping code, no proxy management — just text in, structured data or natural-language results out.
+
+<CardGroup cols={2}>
+  <Card title="Natural language in" icon="bolt">
+    Describe what you want in plain English. No selectors, no scraping code — the system figures out how to get the data.
+  </Card>
+  <Card title="Fast on popular sites" icon="gauge-high">
+    Questions about Hacker News, Wikipedia, Amazon, Airbnb, Stack Overflow, and other common sites resolve in seconds.
+  </Card>
+  <Card title="Authenticated social platforms" icon="at">
+    Twitter, Reddit, TikTok, YouTube, Instagram, and LinkedIn — supply your end-user's session cookies and fetch their actual feeds, profiles, and trending data.
+  </Card>
+  <Card title="Multi-turn conversations" icon="messages">
+    Sessions let follow-up questions reference prior answers, so your users can refine their queries naturally.
+  </Card>
+</CardGroup>
+
+## When to use it
+
+- **Your product needs live web data** — trending topics, competitor pricing, research summaries, listing extraction — and you don't want to maintain a scraping stack.
+- **Your users ask questions you can't pre-anticipate** — a chatbot that genuinely needs the open web, not just your own knowledge base.
+- **You're building AI agents that need tool-use** — stablebrowse is the "browse the internet" tool.
+
+## How it's shaped
+
+stablebrowse is B2B. You — the paying customer — get an API key. Your users are modeled as opaque identifiers scoped to your account, so the same "alice" in your app and someone else's app are entirely separate to us. Each user can have their own social-media credentials and their own in-progress conversations.
+
+<Note>
+  If you're building a consumer product that talks to the open web on behalf of your users, stablebrowse is a drop-in replacement for "spend six months building scrapers."
+</Note>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="play" href="/quickstart">
+    Mint a key, install the SDK, run your first task in under 5 minutes.
+  </Card>
+  <Card title="Concepts" icon="diagram-project" href="/concepts/businesses">
+    How businesses, end-users, sessions, and tasks relate to each other.
+  </Card>
+  <Card title="API reference" icon="code" href="/api-reference/introduction">
+    Every endpoint, with request and response shapes.
+  </Card>
+  <Card title="SDKs" icon="cube" href="/sdks/python">
+    Python and TypeScript clients.
+  </Card>
+</CardGroup>

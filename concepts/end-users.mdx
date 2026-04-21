@@ -1,0 +1,84 @@
+---
+title: "End users"
+description: "An end-user is whoever you're running tasks on behalf of — your customer's user ID, your chatbot's session, whatever maps to 'one person' in your product."
+---
+
+## The idea
+
+An **end-user** is an opaque identifier you hand to stablebrowse to say _"this request is happening on behalf of this person in my product."_ We don't validate it, don't parse it, don't own it — it's just a string scoped to your business.
+
+## Why it matters
+
+End-users are the unit of **credential isolation** and **session scoping**:
+
+- You upload Twitter cookies under `end_users("alice")`. Subsequent tasks with `endUserId: "alice"` use those cookies. Tasks with `endUserId: "bob"` don't see them.
+- Sessions (multi-turn conversations) belong to a specific end-user. Alice's sports chat won't leak into her food chat, and neither will leak across end-users.
+- Observability is partitioned per end-user, so you can pull the full task history of any user in your product.
+
+## Who picks the ID?
+
+**You do.** It's whatever identifier you already have for that person — a database UUID, an email hash, a chat-session ID, `"alice"`. We only care that it's unique _within your business_ and stable (so credentials and sessions keep working).
+
+<Warning>
+  Don't use PII if you don't have to. `"user_7f2a..."` from your database is fine. Raw emails or phone numbers in the identifier means they land in our logs and observability data — not a security issue (it's your data), but cleaner to opaque-ify.
+</Warning>
+
+## Collision rules
+
+End-user IDs only collide with themselves — same business, same string. Two different businesses can both have `"alice"` with totally separate credentials, sessions, and tasks. We key every end-user record on `(businessId, endUserId)`.
+
+## Sentinel: "self"
+
+If your B2C product is just you (the Cognito user) using stablebrowse for yourself, the dashboard auto-wires tasks to the sentinel `endUserId = "self"`. You can hit the API the same way — either explicitly pass `"self"` or omit `endUserId` on Cognito-JWT calls and we fill it in.
+
+## Credentials lifecycle
+
+<CodeGroup>
+```python Python
+client.end_users("alice").credentials.set(
+    twitter_auth_token="...",
+    twitter_ct0="...",
+    tiktok_session_id="...",
+)
+
+# Check what's configured (never returns the secrets themselves)
+status = client.end_users("alice").credentials.get()
+# → {platforms: {twitter: True, tiktok: True, ...}}
+
+# Clear specific platforms
+client.end_users("alice").credentials.delete(
+    fields=["twitter_auth_token", "twitter_ct0"],
+)
+
+# Or wipe everything for that end-user
+client.end_users("alice").credentials.delete()
+```
+
+```typescript TypeScript
+await client.endUsers("alice").credentials.set({
+  twitterAuthToken: "...",
+  twitterCt0: "...",
+  tiktokSessionId: "...",
+});
+
+const status = await client.endUsers("alice").credentials.get();
+
+await client.endUsers("alice").credentials.delete(
+  ["twitterAuthToken", "twitterCt0"],
+);
+
+await client.endUsers("alice").credentials.delete();
+```
+</CodeGroup>
+
+Credentials are KMS-encrypted at rest. They never appear in any response — `GET credentials` returns only which platforms are configured, not the values.
+
+## When to create vs. reuse an end-user
+
+- **Reuse** for the same person across calls. Sessions, credentials, and task history all hinge on a stable `endUserId`.
+- **New ID** when a person is logically different — separate Cognito sub, different browser session, different tenant in your product.
+- **Don't rotate IDs** to "start fresh." Just use `credentials.delete()` and send an empty sessionId to begin a new conversation. The end-user row stays; their state is reset.
+
+## End-users are not users of the dashboard
+
+Your end-users don't log into the stablebrowse dashboard. They never interact with us directly — everything flows through your API key. That's the B2B2C model: you own the relationship with your users, and we process their workload on your behalf.

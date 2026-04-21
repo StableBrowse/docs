@@ -1,0 +1,89 @@
+---
+title: "Platforms"
+description: "What we support out of the box, which sites are fast-path lookups, and which need credentials."
+---
+
+## Fast-path lookups — no credentials needed
+
+For these sites, common questions resolve in 1-4 seconds because we maintain structured indexes against them. Just phrase the question naturally; stablebrowse figures out the best data path.
+
+<CardGroup cols={2}>
+  <Card title="Hacker News">top, new, best, ask, show, jobs; story details; comments</Card>
+  <Card title="Wikipedia">search, article, summary, sections, references, recent changes, random</Card>
+  <Card title="Stack Overflow">search, question, answers, tags, users</Card>
+  <Card title="Steam">search, app details, reviews, featured, categories</Card>
+  <Card title="Yelp">search, business details, autocomplete</Card>
+  <Card title="Amazon">search, product, deals, bestsellers, departments</Card>
+  <Card title="Airbnb">search, listing, dates, guests, amenities</Card>
+  <Card title="Craigslist">search by city + category</Card>
+  <Card title="GitHub">repos, issues, PRs, code search</Card>
+  <Card title="Google Flights">search by origin / destination / dates</Card>
+  <Card title="LeetCode">problems, filters, difficulty, tags</Card>
+  <Card title="Redfin">listings, properties, sale / rent</Card>
+  <Card title="Starbucks">locations, hours, menu</Card>
+  <Card title="Uber">fare estimates, ride types</Card>
+  <Card title="Walmart">search, products, deals</Card>
+  <Card title="Zillow">listings, properties, sale / rent</Card>
+</CardGroup>
+
+## Authenticated platforms
+
+For these platforms stablebrowse uses each site's internal APIs through an authenticated browser session. You supply the end-user's cookies via the [credentials endpoint](/api-reference/end-users/set-credentials), the system calls the right API for the question, and results come back in 5-30 seconds.
+
+<Accordion title="Twitter / X">
+  **Cookies needed:** `twitter_auth_token`, `twitter_ct0`
+
+  Capabilities: searching tweets, fetching a user's timeline or replies, user profiles, home timeline, trending topics, following lists.
+
+  How to get the cookies: log in to [x.com](https://x.com) in a browser → DevTools → Application → Cookies → copy `auth_token` and `ct0`.
+</Accordion>
+
+<Accordion title="Reddit">
+  **Cookies needed:** `reddit_session` (only for authenticated features like fetching your own profile)
+
+  Capabilities: browsing subreddits, searching posts, reading comment threads. Most features work without any cookies.
+</Accordion>
+
+<Accordion title="TikTok">
+  **Cookies needed for auth-gated features:** `tiktok_session_id`, `tiktok_csrf_token`
+
+  Capabilities: hashtag pages, trending, user profiles, video detail, comments, search users, followers/following, your own profile. Public features (hashtag, trending, video, profile) work without cookies.
+</Accordion>
+
+<Accordion title="YouTube">
+  **Cookies needed for auth-gated features:** `youtube_sid`, `youtube_hsid`, `youtube_ssid`, `youtube_sapisid`
+
+  Capabilities: search, video detail, comments, channels, home feed, subscriptions feed, watch history, playlists. Search, video detail, comments, and channel pages work without cookies.
+</Accordion>
+
+<Accordion title="Instagram">
+  **Cookies needed:** `instagram_session_id`, `instagram_csrf_token`, `instagram_ds_user_id`
+
+  Capabilities: profiles, full profiles, searching reels, hashtag posts, and more.
+</Accordion>
+
+<Accordion title="LinkedIn">
+  **Credentials needed:** an Exa API key (for search) + optional LinkedIn session cookies for richer profile data.
+
+  Tooling uses Exa's LinkedIn index as primary, with Apify as a real-time fallback when the cache misses.
+</Accordion>
+
+<Accordion title="DoorDash">
+  **Cookies needed for auth-gated features:** `doordash_session_id`, `doordash_csrf_token`
+
+  Capabilities: search food, get restaurant menus.
+</Accordion>
+
+## Everything else on the web
+
+Any site not listed above runs through the full browser agent — the system reads the page, plans its next action, clicks, scrolls, and extracts. Works for most of the public web: blogs, news, dashboards, one-off research. Typically 10-60 seconds per task.
+
+This is also the fallback when a site IS in the fast-path list but the specific question doesn't fit a pre-indexed pattern.
+
+## Credential storage
+
+All credentials are encrypted at rest via AWS KMS. They're attached to a specific `(businessId, endUserId)` pair and never returned in any GET response — the status endpoint only says "configured: true/false" per platform. Delete them at any time via [`DELETE /v1/end-users/{id}/credentials`](/api-reference/end-users/delete-credentials).
+
+## Adding a platform
+
+If a site you care about isn't in the fast-path list and the agent struggles with it, [let us know](mailto:team@stablebrowse.ai). We add dedicated indexes based on customer demand.

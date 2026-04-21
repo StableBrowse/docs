@@ -1,33 +1,95 @@
 ---
-title: 'Introduction'
-description: 'Example section for showcasing API endpoints'
+title: "API reference"
+description: "Base URL, auth, error conventions."
 ---
 
+## Base URL
+
+```
+https://api.stablebrowse.ai/v1
+```
+
 <Note>
-  If you're not looking to build API reference documentation, you can delete
-  this section by removing the api-reference folder.
+  During private beta the API is served from `https://cs847b7b23.execute-api.us-west-2.amazonaws.com/v1`. A custom domain lands before GA.
 </Note>
-
-## Welcome
-
-There are two ways to build API documentation: [OpenAPI](https://mintlify.com/docs/api-playground/openapi/setup) and [MDX components](https://mintlify.com/docs/api-playground/mdx/configuration). For the starter kit, we are using the following OpenAPI specification.
-
-<Card
-  title="Plant Store Endpoints"
-  icon="leaf"
-  href="https://github.com/mintlify/starter/blob/main/api-reference/openapi.json"
->
-  View the OpenAPI specification file
-</Card>
 
 ## Authentication
 
-All API endpoints are authenticated using Bearer tokens and picked up from the specification file.
+Every request includes a bearer token in the `Authorization` header:
+
+```http
+Authorization: Bearer sb_live_...
+```
+
+Keys are minted in the [dashboard](https://main.dxljyf58fkcrt.amplifyapp.com) under **Settings → API Keys**. See [Authentication](/authentication) for rotation and revocation.
+
+## Request + response
+
+All bodies are JSON. `Content-Type: application/json` required on all POST/PUT/DELETE calls with bodies. Responses are always JSON unless noted.
+
+## Async model
+
+Task submission is asynchronous. `POST /v1/tasks` returns immediately with a `taskId` and `status: "pending"`. The task runs in the background (typically 5-60 seconds). Poll `GET /v1/tasks/{taskId}` until `status` reaches a terminal value (`completed`, `failed`).
+
+The Python and TypeScript SDKs' `tasks.run(...)` method hides the polling loop. Use it unless you need to drive polling yourself.
+
+## Error shape
+
+Errors come back with an HTTP status code and a JSON body:
 
 ```json
-"security": [
-  {
-    "bearerAuth": []
-  }
-]
+{
+  "error": "Human-readable description of what went wrong"
+}
 ```
+
+## Status codes
+
+| Code | When | Example |
+| --- | --- | --- |
+| `200 OK` | GET / DELETE success | Fetching a task, revoking a key |
+| `201 Created` | POST success | Submitting a task, minting a key |
+| `400 Bad Request` | Invalid JSON or validation failure | Missing `endUserId`, blank `task`, `endUserId > 256 chars` |
+| `401 Unauthorized` | Missing auth header, or token is of the wrong kind for the route | API key presented to `/v1/api-keys` (JWT-only route) |
+| `403 Forbidden` | Valid token but denied access | Revoked API key, cross-business ownership violation |
+| `404 Not Found` | Resource doesn't exist or you don't own it | Unknown `taskId`, unknown `sessionId` |
+| `405 Method Not Allowed` | Wrong HTTP verb for the route | POST to a GET-only endpoint |
+| `429 Too Many Requests` | Rate limit or quota exceeded | See the response body for specifics |
+| `500 Internal Server Error` | Our bug | Rare. Retry with exponential backoff. |
+
+Full codes: [Errors](/errors).
+
+## Endpoint summary
+
+<CardGroup cols={2}>
+  <Card title="Submit task" icon="paper-plane" href="/api-reference/tasks/submit">
+    `POST /v1/tasks`
+  </Card>
+  <Card title="Get task" icon="magnifying-glass" href="/api-reference/tasks/get">
+    `GET /v1/tasks/{taskId}`
+  </Card>
+  <Card title="List tasks" icon="list" href="/api-reference/tasks/list">
+    `GET /v1/tasks`
+  </Card>
+  <Card title="Get session" icon="comments" href="/api-reference/sessions/get">
+    `GET /v1/sessions/{sessionId}`
+  </Card>
+  <Card title="Set credentials" icon="upload" href="/api-reference/end-users/set-credentials">
+    `PUT /v1/end-users/{endUserId}/credentials`
+  </Card>
+  <Card title="Get credentials" icon="eye" href="/api-reference/end-users/get-credentials">
+    `GET /v1/end-users/{endUserId}/credentials`
+  </Card>
+  <Card title="Delete credentials" icon="trash" href="/api-reference/end-users/delete-credentials">
+    `DELETE /v1/end-users/{endUserId}/credentials`
+  </Card>
+  <Card title="Create API key" icon="key" href="/api-reference/api-keys/create">
+    `POST /v1/api-keys`
+  </Card>
+  <Card title="List API keys" icon="list-check" href="/api-reference/api-keys/list">
+    `GET /v1/api-keys`
+  </Card>
+  <Card title="Revoke API key" icon="ban" href="/api-reference/api-keys/revoke">
+    `DELETE /v1/api-keys/{prefix}`
+  </Card>
+</CardGroup>

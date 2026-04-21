@@ -1,0 +1,117 @@
+---
+title: "Tasks"
+description: "A task is a single agent run — one prompt, one answer."
+---
+
+## The idea
+
+A **task** is the unit of work: you submit a natural-language prompt, we spin up a browser and an LLM-driven agent, the agent runs until it completes or fails, and we return a result.
+
+```
+POST /v1/tasks  { endUserId, task, sessionId?, ... }  →  { taskId, sessionId, status: "pending" }
+                                                                ↓
+                                                          (5-60 seconds)
+                                                                ↓
+GET /v1/tasks/{taskId}                              →  { status: "completed", result: "...", ... }
+```
+
+## Lifecycle
+
+Every task moves through these states on our side:
+
+1. **`pending`** — enqueued on SQS, waiting for a worker.
+2. **`running`** — a worker picked it up, the browser is spinning up.
+3. **`completed`** — the agent finished and reported a result.
+4. **`failed`** — hard error (worker crash, unhandled exception, hit the `TASK_TIMEOUT_MS` hard cap). `task.error` explains what happened.
+
+The SDKs' `tasks.run(...)` polls this cycle for you and returns only when terminal (`completed` or `failed`). Use `tasks.submit(...)` + `tasks.get(...)` directly if you want to drive the loop yourself.
+
+## What a task record contains
+
+Every task record accumulates rich observability data you can read back anytime:
+
+```json
+{
+  "taskId": "...",
+  "sessionId": "...",
+  "endUserId": "...",
+  "status": "completed",
+  "task": "the prompt you sent",
+
+  "result": "the final answer — string or structured JSON",
+  "structured_content": { /* present if you passed schema */ },
+  "html_dump": "optional raw HTML if include_html_dump was true",
+
+  "totalSteps": 3,
+  "durationMs": 8420,
+  "visitedUrls": ["news.ycombinator.com"],
+  "stepSummaries": [
+    { "n": 1, "type": "discovery", "msg": "Resolving question to data source", "success": true },
+    { "n": 2, "type": "planning",  "msg": "Planning retrieval",                "success": true },
+    { "n": 3, "type": "execution", "msg": "Fetched requested data",            "success": true }
+  ],
+
+  "createdAt": "2026-04-21T...",
+  "updatedAt": "2026-04-21T..."
+}
+```
+
+See the SDK's [`Task`](/sdks/python) type for typed field access.
+
+## Task options
+
+<ParamField body="endUserId" type="string" required>
+  Opaque identifier for the user this task runs on behalf of. See [End users](/concepts/end-users).
+</ParamField>
+
+<ParamField body="task" type="string" required>
+  The natural-language prompt.
+</ParamField>
+
+<ParamField body="sessionId" type="string">
+  Pass a previous task's `sessionId` to continue a conversation. Omit to start a new one.
+</ParamField>
+
+<ParamField body="startUrl" type="string">
+  If you know the specific URL the agent should start from, pass it. Skips the agent's initial URL-discovery step.
+</ParamField>
+
+<ParamField body="schema" type="object (JSON Schema)">
+  If set, the agent returns structured data conforming to the schema on `task.structured_content`. The `result` field still contains a natural-language summary.
+</ParamField>
+
+<ParamField body="maxSteps" type="number" default="25">
+  Hard cap on agent steps before the task is forced to finalize. Server-side clamped to `≤ 25`.
+</ParamField>
+
+<ParamField body="include_html_dump" type="boolean" default="false">
+  If true, the last page's HTML is returned on `task.html_dump`. Useful for downstream parsing; adds to response size.
+</ParamField>
+
+## Latency you can expect
+
+Rough ranges based on how tricky the task is:
+
+| Task shape | Typical latency |
+| --- | --- |
+| Factual lookup on a popular site (HN top story, Wikipedia article, Amazon product, Airbnb search) | **1-4 seconds** |
+| Authenticated social-media query (your Twitter feed, TikTok trending, YouTube subscriptions) | **5-30 seconds** |
+| Open-ended research on a site we don't pre-optimize | **10-60 seconds** |
+
+Faster answers on common sites come from indexed paths that skip full browser execution when possible. You get the same answer either way — the latency difference is a pure performance win.
+
+## Failures
+
+A task ends in `status: "failed"` when:
+
+- The worker hit an unhandled exception (rare — we've instrumented most paths)
+- The task exceeded `TASK_TIMEOUT_MS` (3 minutes by default)
+- A required credential was missing AND the agent couldn't fall back to a public path
+
+Check `task.error` for the specific message. If you're in a session, the next turn you submit will include this failure in `previousError` so the agent knows not to retry the same approach.
+
+## What stablebrowse doesn't do
+
+- **Persist browser state between tasks.** Each task is a fresh Chrome instance. Session continuity flows via `previousContext`, not a live browser.
+- **Chain tasks automatically.** You can't say "run task A then task B." Submit them separately.
+- **Provide realtime streaming of agent steps.** Polling `GET /v1/tasks/{id}` returns the latest `stepSummaries[]` as they accumulate, but there's no WebSocket/SSE stream in v1.

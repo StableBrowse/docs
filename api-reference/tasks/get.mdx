@@ -1,0 +1,130 @@
+---
+title: "Get task"
+api: "GET /v1/tasks/{taskId}"
+description: "Fetch a single task record. Poll this to track pending tasks to completion."
+---
+
+## Path parameters
+
+<ParamField path="taskId" type="string" required>
+  The task identifier returned by [`POST /v1/tasks`](/api-reference/tasks/submit).
+</ParamField>
+
+## Response — `200 OK`
+
+<ResponseField name="taskId" type="string">
+  Task identifier.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  The session this task belongs to.
+</ResponseField>
+
+<ResponseField name="endUserId" type="string">
+  The end-user the task ran for.
+</ResponseField>
+
+<ResponseField name="task" type="string">
+  The prompt as originally submitted.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  `"pending"` | `"running"` | `"completed"` | `"failed"` | `"cancelled"`.
+</ResponseField>
+
+<ResponseField name="result" type="string | object">
+  The final answer. String for most tasks; JSON object for tasks that return structured data or when `schema` was provided.
+</ResponseField>
+
+<ResponseField name="structured_content" type="object">
+  Only present when the request included `schema`. The object conforming to that schema.
+</ResponseField>
+
+<ResponseField name="html_dump" type="string">
+  Only present when the request had `include_html_dump: true`. Raw HTML of the final page.
+</ResponseField>
+
+<ResponseField name="totalSteps" type="number">
+  Number of agent steps executed.
+</ResponseField>
+
+<ResponseField name="durationMs" type="number">
+  Wall-clock duration of the task in milliseconds.
+</ResponseField>
+
+<ResponseField name="visitedUrls" type="string[]">
+  Domains the agent navigated to, deduplicated in order.
+</ResponseField>
+
+<ResponseField name="stepSummaries" type="StepSummary[]">
+  Per-step trace: `{ n, type, msg, success }`.
+</ResponseField>
+
+<ResponseField name="error" type="string">
+  Populated only when `status == "failed"`.
+</ResponseField>
+
+<ResponseField name="createdAt" type="string (ISO 8601)">
+  When the task was submitted.
+</ResponseField>
+
+<ResponseField name="updatedAt" type="string (ISO 8601)">
+  Last status change.
+</ResponseField>
+
+<Info>
+  Additional internal fields may be present on the response for observability and may change without notice. Rely only on the fields documented above.
+</Info>
+
+## Example
+
+<CodeGroup>
+```bash curl
+curl "$API_BASE/tasks/7f2a..." \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+```python Python
+task = client.tasks.get("7f2a...")
+print(task.status, task.result)
+```
+
+```typescript TypeScript
+const task = await client.tasks.get("7f2a...");
+console.log(task.status, task.result);
+```
+</CodeGroup>
+
+## Polling pattern
+
+Both SDKs' `tasks.run(...)` wrap submit + poll in one call. If you're polling yourself:
+
+<CodeGroup>
+```python Python
+submission = client.tasks.submit(end_user_id="alice", task="...")
+while True:
+    task = client.tasks.get(submission.task_id)
+    if task.is_terminal:
+        break
+    time.sleep(2)
+```
+
+```typescript TypeScript
+const submission = await client.tasks.submit({ endUserId: "alice", task: "..." });
+while (true) {
+  const task = await client.tasks.get(submission.taskId);
+  if (["completed", "failed", "cancelled"].includes(task.status)) break;
+  await new Promise(r => setTimeout(r, 2000));
+}
+```
+</CodeGroup>
+
+Recommended poll interval: **2 seconds**. Lower than that wastes requests; higher than that adds user-visible latency.
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `401` | Missing `Authorization` header |
+| `403` | Task belongs to another business |
+| `404` | Unknown `taskId` |

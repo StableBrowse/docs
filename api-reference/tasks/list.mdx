@@ -1,0 +1,71 @@
+---
+title: "List tasks"
+api: "GET /v1/tasks"
+description: "List the caller's sessions, grouped. Each session is summarized; the full per-task detail is available via GET /v1/sessions/{sessionId}."
+---
+
+## Query parameters
+
+<ParamField query="limit" type="number" default="50">
+  How many sessions to return. Capped at 100.
+</ParamField>
+
+## Response — `200 OK`
+
+<ResponseField name="sessions" type="SessionSummary[]">
+  Array of session summaries, most-recent-first.
+</ResponseField>
+
+Each `SessionSummary` contains:
+
+<ResponseField name="sessionId" type="string" />
+
+<ResponseField name="firstTask" type="Task">
+  The first task in the session — useful for displaying the session's "title" in a UI.
+</ResponseField>
+
+<ResponseField name="turnCount" type="number">
+  Total tasks in the session.
+</ResponseField>
+
+<ResponseField name="latestStatus" type="string">
+  Status of the most recent task in the session.
+</ResponseField>
+
+<ResponseField name="latestCreatedAt" type="string (ISO 8601)" />
+
+<ResponseField name="latestUpdatedAt" type="string (ISO 8601)" />
+
+## Example
+
+<CodeGroup>
+```bash curl
+curl "$API_BASE/tasks?limit=20" \
+  -H "Authorization: Bearer $API_KEY"
+```
+
+```python Python
+sessions = client.tasks.list()
+for s in sessions:
+    print(f"{s['sessionId']}  turns={s['turnCount']}  status={s['latestStatus']}")
+```
+
+```typescript TypeScript
+const sessions = await client.tasks.list({ limit: 20 });
+for (const s of sessions) {
+  console.log(`${s.sessionId}  turns=${s.turnCount}  status=${s.latestStatus}`);
+}
+```
+</CodeGroup>
+
+## Notes
+
+- **Grouping is server-side.** The response gives you one row per conversation, not one row per task. That's usually what you want for building a "chat history" sidebar in your UI.
+- **Pagination.** v1 doesn't support cursor-based paging. If you need more than 100 sessions, filter by `endUserId` (coming soon as a dedicated endpoint) or query DynamoDB directly if you have that access.
+- **No cross-tenant data.** You only see sessions belonging to your own business.
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `401` | Missing `Authorization` header |

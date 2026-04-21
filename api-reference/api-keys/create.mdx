@@ -1,0 +1,64 @@
+---
+title: "Create API key"
+api: "POST /v1/api-keys"
+description: "Mint a new API key for your business. Authenticated via dashboard JWT only — existing API keys can't mint new keys."
+---
+
+<Warning>
+  This endpoint requires a Cognito JWT from the [dashboard](https://main.dxljyf58fkcrt.amplifyapp.com). API-key bearer tokens are **refused** (403) by design — a leaked key can't entrench itself by creating more keys.
+
+  Most customers use the dashboard's **Settings → API Keys** UI, not this endpoint directly. Documented here for automation / admin scripts that already have a Cognito session.
+</Warning>
+
+## Request body
+
+<ParamField body="label" type="string">
+  Optional human-readable name. Shows up in the dashboard listing and in `lastUsedAt` audits. Max 60 chars.
+</ParamField>
+
+## Response — `201 Created`
+
+<ResponseField name="keyId" type="string">
+  Opaque identifier for this key. Same value as `prefix` — used to reference the key on `DELETE`.
+</ResponseField>
+
+<ResponseField name="prefix" type="string">
+  The first 16 characters of the secret (e.g. `sb_live_abcd1234`). Safe to display; used as the key's public identifier.
+</ResponseField>
+
+<ResponseField name="secret" type="string">
+  **The full secret, returned exactly once.** Save it immediately — the server stores only a hash, so it can't be recovered.
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  The label you supplied (or null).
+</ResponseField>
+
+<ResponseField name="createdAt" type="string (ISO 8601)" />
+
+## Example
+
+```bash
+curl "$API_BASE/api-keys" -X POST \
+  -H "Authorization: Bearer $COGNITO_JWT" \
+  -H "Content-Type: application/json" \
+  -d '{"label": "production"}'
+```
+
+```json Response (201)
+{
+  "keyId": "sb_live_Pq778jCf",
+  "prefix": "sb_live_Pq778jCf",
+  "secret": "sb_live_Pq778jCf_d1Iov4oX4MpVDhBNqxKJEXVFbJRDkHHkT6AyklZc",
+  "label": "production",
+  "createdAt": "2026-04-21T..."
+}
+```
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `401` | Missing `Authorization` header, or JWT expired / invalid |
+| `403` | Used an API key instead of a Cognito JWT |
+| `400` | Invalid JSON body |
