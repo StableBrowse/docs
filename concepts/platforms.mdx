@@ -5,7 +5,7 @@ description: "What we support out of the box, which sites are fast-path lookups,
 
 ## Fast-path lookups — no credentials needed
 
-For these sites, common questions resolve in 1-4 seconds because we maintain structured indexes against them. Just phrase the question naturally; stablebrowse figures out the best data path.
+A few of the many sites where common questions resolve in 1-4 seconds because we maintain structured indexes against them. Just phrase the question naturally; stablebrowse figures out the best data path.
 
 <CardGroup cols={2}>
   <Card title="Hacker News">top, new, best, ask, show, jobs; story details; comments</Card>
@@ -24,6 +24,8 @@ For these sites, common questions resolve in 1-4 seconds because we maintain str
   <Card title="Uber">fare estimates, ride types</Card>
   <Card title="Walmart">search, products, deals</Card>
   <Card title="Zillow">listings, properties, sale / rent</Card>
+  <Card title="LinkedIn">search people and companies, profile lookups</Card>
+  <Card title="YouTube">search, video details, comments, channels</Card>
 </CardGroup>
 
 ## Authenticated platforms
@@ -50,28 +52,10 @@ For these platforms stablebrowse uses each site's internal APIs through an authe
   Capabilities: hashtag pages, trending, user profiles, video detail, comments, search users, followers/following, your own profile. Public features (hashtag, trending, video, profile) work without cookies.
 </Accordion>
 
-<Accordion title="YouTube">
-  **Cookies needed for auth-gated features:** `youtube_sid`, `youtube_hsid`, `youtube_ssid`, `youtube_sapisid`
-
-  Capabilities: search, video detail, comments, channels, home feed, subscriptions feed, watch history, playlists. Search, video detail, comments, and channel pages work without cookies.
-</Accordion>
-
 <Accordion title="Instagram">
   **Cookies needed:** `instagram_session_id`, `instagram_csrf_token`, `instagram_ds_user_id`
 
   Capabilities: profiles, full profiles, searching reels, hashtag posts, and more.
-</Accordion>
-
-<Accordion title="LinkedIn">
-  **Credentials needed:** an Exa API key (for search) + optional LinkedIn session cookies for richer profile data.
-
-  Tooling uses Exa's LinkedIn index as primary, with Apify as a real-time fallback when the cache misses.
-</Accordion>
-
-<Accordion title="DoorDash">
-  **Cookies needed for auth-gated features:** `doordash_session_id`, `doordash_csrf_token`
-
-  Capabilities: search food, get restaurant menus.
 </Accordion>
 
 ## Everything else on the web
