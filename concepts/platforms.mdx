@@ -37,7 +37,7 @@ LinkedIn and YouTube work out of the box — no end-user cookies required. Just 
 
 ## Social platforms
 
-Public data on these platforms works out of the box — **no end-user credentials required** for searches, trending, public profiles, and similar read-only queries. Supply the end-user's session cookies via the [credentials endpoint](/api-reference/end-users/set-credentials) only when you want **personalised** answers: their home feed, their own profile, DMs, watch history, private content, etc. With or without creds, results come back in 5-30 seconds.
+Public data on these platforms works out of the box — stablebrowse supplies a default, unpersonalised set of session cookies automatically, so searches, trending, public profiles, and similar read-only queries just work without any setup on your end. Supply the end-user's own session cookies via the [credentials endpoint](/api-reference/end-users/set-credentials) only when you want **personalised** answers: their home feed, their own profile, DMs, watch history, private content, etc. Results come back in 5-30 seconds either way.
 
 <Accordion title="Twitter / X">
   **Cookies needed:** `twitter_auth_token`, `twitter_ct0`
