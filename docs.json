@@ -1,14 +1,14 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "stablebrowse",
-  "description": "The stablebrowse B2B API — agentic browser automation for your product.",
+  "name": "StableBrowse",
+  "description": "The StableBrowse B2B API — agentic browser automation for your product.",
   "colors": {
-    "primary": "#2563EB",
-    "light": "#60A5FA",
-    "dark": "#1E40AF"
+    "primary": "#18E299",
+    "light": "#5EF0BE",
+    "dark": "#0C8C5E"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "/favicon.png",
   "navigation": {
     "tabs": [
       {
@@ -82,7 +82,7 @@
       ]
     }
   },
-  "logo": { "light": "/logo/light.svg", "dark": "/logo/dark.svg" },
+  "logo": { "light": "/logo/stablebrowse.png", "dark": "/logo/stablebrowse.png" },
   "navbar": {
     "links": [
       { "label": "Support", "href": "mailto:team@stablebrowse.ai" }
