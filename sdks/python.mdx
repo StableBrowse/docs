@@ -107,16 +107,9 @@ client.end_users("alice").credentials.delete()  # wipe all
 
 Python uses `snake_case` keyword arguments; the SDK maps them to the API's `camelCase` field names on the wire.
 
-## API key admin (Cognito JWT only)
+## API key management
 
-These methods work only when the `api_key` you pass is actually a Cognito JWT from the [dashboard](https://main.d3qu1deiqzszds.amplifyapp.com). Most customers use the dashboard UI directly and never call these.
-
-```python
-keys = client.api_keys.list()
-new = client.api_keys.create(label="production")
-print("save this, you won't see it again:", new.secret)
-client.api_keys.revoke(new.prefix)
-```
+Create and revoke API keys in the [dashboard](https://main.d30scu9fjpgpae.amplifyapp.com) under **Settings → API Keys**. Key lifecycle is dashboard-only by design — so a leaked key can't mint more.
 
 ## Exceptions
 

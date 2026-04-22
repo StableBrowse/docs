@@ -107,14 +107,9 @@ await client.endUsers("alice").credentials.delete(["twitterAuthToken", "twitterC
 await client.endUsers("alice").credentials.delete();  // wipe all
 ```
 
-## API key admin (Cognito JWT only)
+## API key management
 
-```ts
-const keys = await client.apiKeys.list();
-const newKey = await client.apiKeys.create("production");
-console.log("save this, you won't see it again:", newKey.secret);
-await client.apiKeys.revoke(newKey.prefix);
-```
+Create and revoke API keys in the [dashboard](https://main.d30scu9fjpgpae.amplifyapp.com) under **Settings → API Keys**. Key lifecycle is dashboard-only by design — so a leaked key can't mint more.
 
 ## Exceptions
 

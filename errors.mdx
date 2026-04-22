@@ -31,7 +31,6 @@ Every error response carries a JSON body with a `.error` field:
     **Common causes:**
     - Header omitted entirely
     - Expired Cognito JWT — re-authenticate via the dashboard
-    - You presented an API key to `/v1/api-keys` (which is JWT-only by design)
 
     **What to do:** mint a fresh token / API key and retry.
   </Accordion>
@@ -43,7 +42,6 @@ Every error response carries a JSON body with a `.error` field:
     - API key has been revoked
     - Attempting to read/write resources belonging to another business
     - Attempting to submit a follow-up into a `sessionId` that isn't yours
-    - Attempting to use an API key on a dashboard-only route (`/v1/api-keys`)
 
     **What to do:** revoked keys aren't recoverable — mint a new one. Cross-tenant denial is intentional; there's no way around it.
   </Accordion>

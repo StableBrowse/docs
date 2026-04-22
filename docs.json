@@ -34,7 +34,7 @@
           },
           {
             "group": "Reference",
-            "pages": ["errors", "changelog"]
+            "pages": ["errors"]
           }
         ]
       },
@@ -64,14 +64,6 @@
               "api-reference/end-users/get-credentials",
               "api-reference/end-users/delete-credentials"
             ]
-          },
-          {
-            "group": "API keys",
-            "pages": [
-              "api-reference/api-keys/create",
-              "api-reference/api-keys/list",
-              "api-reference/api-keys/revoke"
-            ]
           }
         ]
       }
@@ -90,7 +82,7 @@
     "primary": {
       "type": "button",
       "label": "Dashboard",
-      "href": "https://main.d3qu1deiqzszds.amplifyapp.com"
+      "href": "https://main.d30scu9fjpgpae.amplifyapp.com"
     }
   },
   "footer": {
