@@ -69,6 +69,26 @@ A revoked key starts returning `403 Forbidden` immediately on every request. Oth
 
 We deliberately refuse API keys on the key-management endpoints so a leaked key can't mint more keys to entrench itself. Key lifecycle is a dashboard-only operation.
 
+## Rate limits
+
+Every business gets a monthly **15-task** quota on the free tier. The counter is shared across every way you submit tasks — dashboard chat, API key, any SDK. It resets automatically at the start of each calendar month (UTC).
+
+Over the limit, the API returns `429 Too Many Requests`:
+
+```json
+{
+  "error": "Monthly limit of 15 tasks reached. Email team@stablebrowse.ai for higher limits.",
+  "limit": 15,
+  "used": 15
+}
+```
+
+Current usage is visible in the dashboard under **Settings → Usage this month**.
+
+### Raising the limit
+
+Email [team@stablebrowse.ai](mailto:team@stablebrowse.ai) with your use case and expected volume. Limits are raised per business as part of the usage-based pricing conversation.
+
 ## Best practices
 
 - **Never commit keys to git.** Use env vars, secret managers (AWS Secrets Manager, Doppler, 1Password CLI, etc.), or your platform's secret store.

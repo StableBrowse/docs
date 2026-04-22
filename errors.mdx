@@ -66,9 +66,23 @@ Every error response carries a JSON body with a `.error` field:
   </Accordion>
 
   <Accordion title="429 Too Many Requests">
-    **What it means:** rate-limit or quota threshold crossed.
+    **What it means:** the business has hit its monthly task quota (15 on the free tier, higher if you've arranged it).
 
-    **What to do:** back off and retry with exponential delay. The response body indicates which limit was hit.
+    The response body tells you how many you've used and the current cap:
+
+    ```json
+    {
+      "error": "Monthly limit of 15 tasks reached. Email team@stablebrowse.ai for higher limits.",
+      "limit": 15,
+      "used": 15
+    }
+    ```
+
+    **What to do:**
+    - Wait until the start of next month — the counter resets automatically.
+    - Or email [team@stablebrowse.ai](mailto:team@stablebrowse.ai) to have your limit raised.
+
+    See [Authentication → Rate limits](/authentication#rate-limits) for details.
   </Accordion>
 
   <Accordion title="500 Internal Server Error">
