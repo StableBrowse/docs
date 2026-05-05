@@ -1,0 +1,196 @@
+---
+title: "Submit design extraction"
+api: "POST /v1/design/extract"
+description: "Run the design extractors against a URL. Returns immediately with a taskId; poll GET /v1/tasks/{taskId} for the result."
+---
+
+For an overview of what each extractor returns, see [Design extraction](/concepts/design-extraction).
+
+## Request body
+
+<ParamField body="url" type="string" required>
+  The page to extract from. Must be a valid `http://` or `https://` URL.
+</ParamField>
+
+<ParamField body="endUserId" type="string" required>
+  Opaque identifier for the user this extraction runs on behalf of. See [End users](/concepts/end-users). Must be ≤ 256 characters.
+</ParamField>
+
+<ParamField body="extractors" type="string[]">
+  Subset of extractors to run. Valid values: `"images"`, `"fonts"`, `"colors"`, `"icons"`, `"tokens"`, `"logo"`. Omit (or pass an empty array) to run all six. Unknown names are silently dropped; if the resulting list is empty the request returns 400.
+</ParamField>
+
+## Response — `202 Accepted`
+
+<ResponseField name="taskId" type="string">
+  Identifier for the extraction. Poll `GET /v1/tasks/{taskId}` until `status === "completed"`.
+</ResponseField>
+
+<ResponseField name="sessionId" type="string">
+  Always a freshly-minted session — design extractions are single-turn and don't chain like agent tasks.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Always `"pending"` on submission.
+</ResponseField>
+
+<ResponseField name="extractors" type="string[]">
+  The extractors that will actually run (echoed back so callers know exactly what to expect on the result).
+</ResponseField>
+
+<ResponseField name="createdAt" type="string (ISO 8601)">
+  Submission timestamp.
+</ResponseField>
+
+## Submit + wait (recommended)
+
+Both SDKs wrap submit + poll into a single `client.design.run(...)` call. Most integrators should use this — it returns the completed task with `design.results` populated and never needs you to think about the task lifecycle.
+
+<CodeGroup>
+```python Python
+from stablebrowse import Stablebrowse
+client = Stablebrowse()  # reads STABLEBROWSE_API_KEY
+
+task = client.design.run(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["colors", "fonts", "logo"],
+)
+colors = task.design["results"]["colors"]["colors"]
+fonts  = task.design["results"]["fonts"]["fonts"]
+print("Primary:", next(c for c in colors if c["role"] == "primary")["hex"])
+print("Body font:", next(f for f in fonts if f["usage"] == "body")["family"])
+```
+
+```typescript TypeScript
+import { Stablebrowse } from "@stablebrowse/client";
+const client = new Stablebrowse();
+
+const task = await client.design.run({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["colors", "fonts", "logo"],
+});
+const colors = task.design!.results.colors as { colors: Array<{ hex: string; role: string }> };
+const fonts  = task.design!.results.fonts  as { fonts:  Array<{ family: string; usage: string }> };
+console.log("Primary:",  colors.colors.find(c => c.role === "primary")?.hex);
+console.log("Body font:", fonts.fonts.find(f => f.usage === "body")?.family);
+```
+
+```bash curl (no SDK)
+# 1. Submit
+TASK_ID=$(curl -s "$API_BASE/design/extract" -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://www.figma.com/",
+    "endUserId": "alice",
+    "extractors": ["colors", "fonts", "logo"]
+  }' | jq -r .taskId)
+
+# 2. Poll until terminal
+while :; do
+  TASK=$(curl -s "$API_BASE/tasks/$TASK_ID" -H "Authorization: Bearer $API_KEY")
+  STATUS=$(echo "$TASK" | jq -r .status)
+  [[ "$STATUS" == "completed" || "$STATUS" == "failed" ]] && break
+  sleep 2
+done
+
+echo "$TASK" | jq .design.results.colors.colors[0]
+```
+</CodeGroup>
+
+`task.design` carries the full result shape ([response schema](#result-schema)).
+
+## Async primitives
+
+If you need to queue extractions and poll on your own schedule (cron jobs, batch processors), the underlying primitives are available:
+
+<CodeGroup>
+```python Python
+submission = client.design.submit(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["colors", "fonts"],
+)
+# ... later ...
+task = client.tasks.get(submission.task_id)
+if task.is_terminal and task.status == "completed":
+    print(task.design["results"]["colors"])
+```
+
+```typescript TypeScript
+const submission = await client.design.submit({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["colors", "fonts"],
+});
+// ... later ...
+const task = await client.tasks.get(submission.taskId);
+if (task.status === "completed") console.log(task.design?.results.colors);
+```
+</CodeGroup>
+
+`client.tasks.get(taskId)` is the same call you'd use for an agent task — design tasks ride the same task record and the `design` field is populated automatically.
+
+## Submit response — `202 Accepted`
+
+```json
+{
+  "taskId": "7f2a1b8c-...",
+  "sessionId": "a31d5e9f-...",
+  "status": "pending",
+  "extractors": ["colors", "fonts", "logo"],
+  "createdAt": "2026-05-04T22:10:18Z"
+}
+```
+
+## Get-task response (completed)
+
+```json
+{
+  "taskId": "7f2a1b8c-...",
+  "status": "completed",
+  "design": {
+    "url": "https://www.figma.com/",
+    "extractors": ["colors", "fonts", "logo"],
+    "durationMs": 8420,
+    "results": {
+      "colors": { "colors": [ { "hex": "#635BFF", "rgb": "rgb(99,91,255)", "count": 142, "role": "primary" } ], "contrastIssues": [] },
+      "fonts":  { "fonts":  [ { "family": "Sohne", "usage": "body", "weights": [400, 500, 700], "source": "self-hosted", "faceUrl": "https://...s3..." } ] },
+      "logo":   { "logo":   { "found": true, "src": "https://...s3...", "type": "svg", "width": 120, "height": 32 } }
+    }
+  },
+  "createdAt": "2026-05-04T22:10:18Z",
+  "updatedAt": "2026-05-04T22:10:27Z"
+}
+```
+
+<Tip>
+  Typical extractions finish in 5–15 seconds. Recommended poll interval if you're driving the loop yourself: **2 seconds**.
+</Tip>
+
+## Result schema
+
+The `design.results` object contains one key per requested extractor. Top-level shape per extractor:
+
+| Extractor | Result key | Top-level fields |
+| --- | --- | --- |
+| `images` | `images.images[]` | `src`, `type`, `naturalWidth`, `naturalHeight`, `alt`, `svgSource?`, `downloadUrl?`, `originalSrc?`, `s3Key?` |
+| `fonts` | `fonts.fonts[]` | `family`, `usage`, `count`, `weights[]`, `source`, `faceUrl?`, `downloadUrl?`, `originalFaceUrl?`, `s3Key?` |
+| `colors` | `colors.colors[]`, `colors.contrastIssues[]` | colors: `hex`, `rgb`, `count`, `role` (one of `primary`, `background`, `text`, `error`, `success`, `warning`, `neutral` — see [Color roles](/concepts/design-extraction#color-roles)). issues: `fg`, `bg`, `ratio`, `passesAA`, `passesAAA` |
+| `icons` | `icons.icons[]` | `hash`, `source?`, `size`, `style`, `count`, `signedUrl?`, `downloadUrl?`, `s3Key?` |
+| `tokens` | `tokens.tokens` | `dtcg`, `spacing[]`, `radii[]`, `shadows[]`, `gradients[]`, `motionDurationsMs[]`, `cssVariables[]` |
+| `logo` | `logo.logo` | `found`, `src?`, `type?`, `width?`, `height?`, `svgSource?`, `alt?`, `downloadUrl?`, `originalSrc?`, `s3Key?` |
+
+See [Design extraction](/concepts/design-extraction) for what each field means and the URL TTL caveat.
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `400` | `url` missing or not http(s); `endUserId` missing or > 256 chars; invalid `extractors` (no valid names); invalid JSON body |
+| `401` | Missing `Authorization` header |
+| `403` | Revoked API key |
+| `429` | Monthly task quota exceeded; see response body for the limit |
+| `500` | Worker enqueue failed (transient; safe to retry) |

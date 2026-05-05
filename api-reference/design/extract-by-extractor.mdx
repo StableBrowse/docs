@@ -1,0 +1,87 @@
+---
+title: "Run a single extractor"
+api: "POST /v1/design/extract/{extractor}"
+description: "Path-scoped alias of POST /v1/design/extract that runs exactly one extractor. Useful when you only need fonts or only need colors and don't want to filter the response client-side."
+---
+
+This endpoint is identical to [`POST /v1/design/extract`](/api-reference/design/extract) with `extractors: ["<extractor>"]` — it just lets you encode the extractor in the path so URL-based routing, audit logs, and dashboards group cleanly by extractor type.
+
+## Path parameters
+
+<ParamField path="extractor" type="string" required>
+  One of: `images`, `fonts`, `colors`, `icons`, `tokens`, `logo`. An unknown value returns 400.
+</ParamField>
+
+## Request body
+
+<ParamField body="url" type="string" required>
+  The page to extract from. Must be `http://` or `https://`.
+</ParamField>
+
+<ParamField body="endUserId" type="string" required>
+  Opaque identifier for the user this extraction runs on behalf of. ≤ 256 characters.
+</ParamField>
+
+<Info>
+  The body's `extractors` field, if passed, is **ignored** on this endpoint — the path parameter wins.
+</Info>
+
+## Response — `202 Accepted`
+
+Same shape as [`POST /v1/design/extract`](/api-reference/design/extract#response-202-accepted). The returned `extractors` array always contains exactly the path-supplied extractor.
+
+## When to use this vs the combined endpoint
+
+This is just a routing alias. From the SDK, it's usually simpler to call `client.design.run({ ..., extractors: ["colors"] })` against the combined endpoint — same result, one fewer URL to remember. Use the path-aliased endpoint when you want the extractor name surfaced in URL-based logs, audit trails, or routing/proxy rules.
+
+## Example
+
+<CodeGroup>
+```python Python
+# SDK — same client.design.run, just narrow `extractors` to one.
+task = client.design.run(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["colors"],
+)
+print(task.design["results"]["colors"]["colors"][:3])
+```
+
+```typescript TypeScript
+const task = await client.design.run({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["colors"],
+});
+console.log(task.design?.results.colors);
+```
+
+```bash curl (path-aliased endpoint)
+curl "$API_BASE/design/extract/colors" -X POST \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "url": "https://www.figma.com/", "endUserId": "alice" }'
+```
+</CodeGroup>
+
+```json Response
+{
+  "taskId": "7f2a1b8c-...",
+  "sessionId": "a31d5e9f-...",
+  "status": "pending",
+  "extractors": ["colors"],
+  "createdAt": "2026-05-04T22:11:02Z"
+}
+```
+
+Poll `GET /v1/tasks/{taskId}` for the result — see [Submit design extraction → Get-task response](/api-reference/design/extract#get-task-response-completed).
+
+## Errors
+
+| Code | Meaning |
+| --- | --- |
+| `400` | Unknown `extractor`; `url` missing or not http(s); `endUserId` missing or > 256 chars; invalid JSON body |
+| `401` | Missing `Authorization` header |
+| `403` | Revoked API key |
+| `429` | Monthly task quota exceeded |
+| `500` | Worker enqueue failed (transient; safe to retry) |

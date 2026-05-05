@@ -1,0 +1,134 @@
+---
+title: "Design extraction"
+description: "Pull a site's images, fonts, colors, icons, design tokens, and logo as structured data."
+---
+
+## The idea
+
+Point us at a public URL; we render the page in a real browser and return its visual assets as JSON. No agent, no LLM in the loop — these are deterministic extractors that walk the loaded DOM, the computed styles, and the loaded stylesheets.
+
+```
+POST /v1/design/extract  { url, endUserId, extractors? }   →  { taskId, status: "pending" }
+                                                                       ↓
+                                                              (typically 5-15 seconds)
+                                                                       ↓
+GET /v1/tasks/{taskId}                                        →  { status: "completed", design: { ... } }
+```
+
+Same `Authorization: Bearer sb_live_...` header as the rest of the API — see [Authentication](/authentication). Same monthly task quota — every extraction counts as one task.
+
+## The six extractors
+
+You can request all six (default) or a subset via the `extractors` array.
+
+| Name | Returns | Notes |
+| --- | --- | --- |
+| `images` | All `<img>`, inline `<svg>`, and CSS `background-image` assets | Includes natural dimensions and alt text. SVGs include their inline markup. |
+| `fonts` | Font families in use, with weights and `@font-face` source URLs | Tags each as `google` / `self-hosted` / `cdn` / `system`. Categorizes usage as `headings` / `body` / `decorative`. |
+| `colors` | The page's color palette, role-classified | Each color tagged with one of seven roles (see [Color roles](#color-roles)), plus WCAG contrast issues found on the page. |
+| `icons` | Small SVG/icon assets discovered in the DOM | Deduplicated by hash; classified as `outline` / `solid` / `duotone`. |
+| `tokens` | Design tokens — spacing scale, radii, shadows, gradients, motion durations | Returns a [DTCG](https://design-tokens.github.io/community-group/format/)-shaped JSON plus convenience flat lists, plus all the page's `:root` CSS custom properties. |
+| `logo` | The site's primary logo (best-effort) | Heuristic — checks `<header>` SVGs, `link[rel=icon]`, then favicons. Returns `found: false` if nothing convincing is found. |
+
+## What the response looks like
+
+```json
+{
+  "taskId": "...",
+  "status": "completed",
+  "design": {
+    "url": "https://example.com",
+    "extractors": ["images", "fonts", "colors", "icons", "tokens", "logo"],
+    "durationMs": 8420,
+    "results": {
+      "images": { "images": [ { "src": "...", "type": "raster", "naturalWidth": 1200, "alt": "..." } ] },
+      "fonts":  { "fonts":  [ { "family": "Inter", "usage": "body", "weights": [400, 600], "source": "google", "faceUrl": "..." } ] },
+      "colors": {
+        "colors": [ { "hex": "#18E299", "rgb": "rgb(24,226,153)", "count": 47, "role": "primary" } ],
+        "contrastIssues": [ { "fg": "#aaa", "bg": "#fff", "ratio": 2.1, "passesAA": false, "passesAAA": false } ]
+      },
+      "icons":  { "icons":  [ { "hash": "...", "size": { "width": 24, "height": 24 }, "style": "outline", "count": 3, "signedUrl": "..." } ] },
+      "tokens": { "tokens": { "dtcg": { /* DTCG JSON */ }, "spacing": [4, 8, 16, 24], "radii": [4, 8], "shadows": [...], "gradients": [], "motionDurationsMs": [150, 300], "cssVariables": [{ "name": "--brand-500", "value": "#18E299" }] } },
+      "logo":   { "logo":   { "found": true, "src": "...", "type": "svg", "width": 120, "height": 32 } }
+    }
+  }
+}
+```
+
+For exact field-by-field reference, see [`POST /v1/design/extract`](/api-reference/design/extract). The full extractor JSON is always returned in `task.design` on a completed task — there's no truncation, paging, or sampling.
+
+## Color roles
+
+Each entry in `colors.colors[]` carries a `role` field. The classifier emits one of seven values:
+
+| Role | Assigned to |
+| --- | --- |
+| `primary` | The most-used CTA background color — i.e. the dominant button/`<a class="btn">` background. |
+| `background` | The most-used `background-color` page-wide. Usually white or a near-white neutral. |
+| `text` | The most-used `color` (foreground text) page-wide. |
+| `error` | RGB heuristic — red-dominant. |
+| `success` | RGB heuristic — green-dominant. |
+| `warning` | RGB heuristic — orange/amber. |
+| `neutral` | Default for everything else. |
+
+<Note>
+  The `ColorRole` TypeScript union also includes `"secondary"` and `"accent"`, but the current classifier never emits them. Treat the seven values above as the source of truth for what the API actually returns. Improving the classifier to assign secondary/accent roles is on the roadmap.
+</Note>
+
+## Asset URLs and the 7-day TTL
+
+For images, fonts, icons, and the logo, every binary asset is uploaded to S3 and surfaced on the response as a signed URL. There are up to three URL fields per asset:
+
+- **`src` / `signedUrl` / `faceUrl`** — fresh signed URL safe to use as `<img src>`, `@font-face`, etc. No `Content-Disposition`.
+- **`downloadUrl`** — same bytes, but with `Content-Disposition: attachment` baked into the response. Use this for "Download" buttons; cross-origin `<a download>` works against this URL.
+- **`originalSrc` / `originalFaceUrl`** — the source CDN URL we found on the page, before mirroring to S3. Useful for provenance.
+
+<Warning>
+  **Signed URLs expire 7 days after extraction.** If you cache the response and access it later, the asset URLs may 403. Re-submit the task to refresh — the extractor pipeline is deterministic, so you'll get the same shape back. We'll lift this limitation in a future release; for now, treat the result as fresh-on-extract.
+</Warning>
+
+## Lifecycle
+
+A design task goes through the same task states as an agent task: `pending` → `running` → `completed` | `failed`. See [Tasks](/concepts/tasks) for the full lifecycle. Typical extractions complete in 5–15 seconds depending on page weight.
+
+You submit a design task by hitting `POST /v1/design/extract` (the URL is what selects the design route — there's no flag on the agent endpoint that switches into design mode). The SDKs expose this as `client.design.run(...)`, which submits and polls until terminal in one call:
+
+<CodeGroup>
+```python Python
+from stablebrowse import Stablebrowse
+client = Stablebrowse()  # reads STABLEBROWSE_API_KEY
+
+task = client.design.run(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["colors", "fonts", "logo"],  # omit to run all six
+)
+print(task.design["results"]["colors"]["colors"][:3])
+```
+
+```typescript TypeScript
+import { Stablebrowse } from "@stablebrowse/client";
+const client = new Stablebrowse();
+
+const task = await client.design.run({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["colors", "fonts", "logo"], // omit to run all six
+});
+console.log(task.design?.results.colors);
+```
+</CodeGroup>
+
+If you want the async primitives instead — useful if you're queueing extractions and polling on your own schedule — `client.design.submit(...)` returns immediately and `client.tasks.get(taskId)` returns the same task record (with `design` populated once `status === "completed"`).
+
+## Quota and pricing
+
+Every design extraction counts as one task against your monthly quota — same pool as agent tasks. See [Authentication → Rate limits](/authentication#rate-limits).
+
+Pricing for high-volume extraction beyond the free tier is handled per-business. Email [team@stablebrowse.ai](mailto:team@stablebrowse.ai) with your expected volume to talk through limits and rates.
+
+## Common pitfalls
+
+- **Logged-in pages.** Extraction runs in a fresh browser with no cookies, so you'll get the page as an unauthenticated visitor sees it. Extracting the *signed-in* version of a SaaS dashboard isn't supported in v1.
+- **Heavy SPAs that hydrate after `networkidle`.** We do a lazy-load scroll pass before extracting, but a small number of pages keep loading content for 30+ seconds. If you see empty `images[]` arrays on a page that's clearly image-rich, the page may be deferring loads in a way our scroll pass misses.
+- **Pages behind aggressive bot mitigation.** Cloudflare challenges, hCaptcha walls, etc. are not bypassed — the worker uses a residential proxy by default, but if the page hard-refuses, the task will fail. Open an issue with the URL if you hit this.

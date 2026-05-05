@@ -25,7 +25,8 @@
               "concepts/end-users",
               "concepts/sessions",
               "concepts/tasks",
-              "concepts/platforms"
+              "concepts/platforms",
+              "concepts/design-extraction"
             ]
           },
           {
@@ -63,6 +64,13 @@
               "api-reference/end-users/set-credentials",
               "api-reference/end-users/get-credentials",
               "api-reference/end-users/delete-credentials"
+            ]
+          },
+          {
+            "group": "Design extraction",
+            "pages": [
+              "api-reference/design/extract",
+              "api-reference/design/extract-by-extractor"
             ]
           }
         ]
