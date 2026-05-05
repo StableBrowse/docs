@@ -85,6 +85,46 @@ for t in session.tasks:
     print(t.status, t.task)
 ```
 
+## Design extraction
+
+Pull a site's images, fonts, colors, icons, design tokens, and logo as structured data. See [Design extraction](/concepts/design-extraction) for what each extractor returns.
+
+```python
+task = client.design.run(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["colors", "fonts", "logo"],  # omit to run all six
+)
+print(task.design["results"]["colors"]["colors"][:3])
+```
+
+`run()` submits + polls until the extraction terminates (typically 5–15 seconds). For manual control:
+
+```python
+submission = client.design.submit(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+)
+# ... later — design tasks ride the same task record as agent tasks
+task = client.tasks.get(submission.task_id)
+if task.is_terminal and task.status == "completed":
+    print(task.design)
+```
+
+### Options
+
+```python
+task = client.design.run(
+    url="https://www.figma.com/",
+    end_user_id="alice",
+    extractors=["images", "fonts", "colors", "icons", "tokens", "logo"],
+    poll_interval=2,
+    poll_timeout=300,
+)
+```
+
+`task.design` is the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
+
 ## End-user credentials
 
 ```python

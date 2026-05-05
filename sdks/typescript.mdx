@@ -89,6 +89,45 @@ for (const t of session.tasks) {
 }
 ```
 
+## Design extraction
+
+Pull a site's images, fonts, colors, icons, design tokens, and logo as structured data. See [Design extraction](/concepts/design-extraction) for what each extractor returns.
+
+```ts
+const task = await client.design.run({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["colors", "fonts", "logo"], // omit to run all six
+});
+console.log(task.design?.results.colors);
+```
+
+`run()` submits + polls until the extraction terminates (typically 5–15 seconds). For manual control:
+
+```ts
+const submission = await client.design.submit({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+});
+// ... later — design tasks ride the same task record as agent tasks
+const task = await client.tasks.get(submission.taskId);
+if (task.status === "completed") console.log(task.design);
+```
+
+### Options
+
+```ts
+const task = await client.design.run({
+  url: "https://www.figma.com/",
+  endUserId: "alice",
+  extractors: ["images", "fonts", "colors", "icons", "tokens", "logo"],
+  pollIntervalMs: 2000,
+  pollTimeoutMs: 300_000,
+});
+```
+
+`task.design` carries the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
+
 ## End-user credentials
 
 ```ts
