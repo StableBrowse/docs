@@ -7,16 +7,21 @@ description: "Install StableBrowse MCP, connect it to an MCP client, and run you
 
 - An MCP client such as Claude Desktop, Cursor, Codex, or your own MCP runner
 - For hosted Browser MCP: a StableBrowse API key from the settings page
-- For local Browser MCP: Node.js 20 or newer, a StableBrowse MCP checkout or package, and the StableBrowse browser runtime available in the environment
+- For local Browser MCP: Node.js 20 or newer and a StableBrowse MCP checkout
 
 ## Hosted Browser MCP
 
 Hosted Browser MCP is the recommended setup for end users. The browser runs in StableBrowse cloud; your LLM app only needs the MCP endpoint and your StableBrowse API key.
 
 1. Sign in to StableBrowse.
-2. Open the settings page.
+2. Open [settings](https://stablebrowse.com/playground/settings).
 3. Create an API key.
-4. Add the hosted Browser MCP endpoint to your MCP client.
+4. Add the hosted Browser MCP endpoint to your MCP client:
+
+```text
+http://Stable-Servi-xpbtj3YEoY3C-1719471673.us-west-2.elb.amazonaws.com/mcp
+```
+
 5. Send the API key as a bearer token.
 
 The client should authenticate every MCP request with:
@@ -29,19 +34,13 @@ Authorization: Bearer sb_live_...
   Your LLM key stays with your LLM app or model provider. The StableBrowse API key authenticates access to the hosted browser.
 </Note>
 
-## Install
+## Local install
 
-From the MCP project:
+Hosted Browser MCP does not require a local browser process. If you want to run the MCP server yourself, use a source checkout:
 
 ```bash
 npm install
 npm run build
-```
-
-For package-based usage:
-
-```bash
-npx stablebrowse-mcp
 ```
 
 ## Run over stdio

@@ -5,7 +5,7 @@ description: "Run StableBrowse as an MCP server so LLM agents can control a real
 
 StableBrowse Browser MCP exposes a real browser to any Model Context Protocol client. It is meant for agents that need to browse, click, fill forms, extract page data, read documents, inspect network traffic, and use site-specific knowledge without building browser automation code.
 
-For hosted usage, create an API key from the StableBrowse settings page, add the hosted MCP URL to your LLM app, and send the key as a bearer token. StableBrowse runs the browser in the cloud and returns MCP tool results to your agent.
+For hosted usage, create an API key from the [StableBrowse settings page](https://stablebrowse.com/playground/settings), add the hosted MCP URL to your LLM app, and send the key as a bearer token. StableBrowse runs the browser in the cloud and returns MCP tool results to your agent.
 
 <CardGroup cols={2}>
   <Card title="One MCP surface" icon="plug">
@@ -34,6 +34,20 @@ Use Browser MCP when you are building or testing an agent that needs direct brow
 - giving Claude Desktop, Cursor, Codex, or another MCP client a browser tool
 
 If you want StableBrowse to run the whole natural-language task for you, use the StableBrowse API documented in the main quickstart. Use Browser MCP when your own LLM agent should decide which browser tools to call.
+
+## Hosted endpoint
+
+Use this MCP endpoint with any Streamable HTTP MCP client:
+
+```text
+http://Stable-Servi-xpbtj3YEoY3C-1719471673.us-west-2.elb.amazonaws.com/mcp
+```
+
+Authenticate requests with the same `sb_live_...` key model used by the rest of StableBrowse:
+
+```http
+Authorization: Bearer sb_live_...
+```
 
 ## What agents see
 
