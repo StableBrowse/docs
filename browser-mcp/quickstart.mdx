@@ -7,7 +7,7 @@ description: "Install StableBrowse MCP, connect it to an MCP client, and run you
 
 - An MCP client such as Claude Desktop, Cursor, Codex, or your own MCP runner
 - For hosted Browser MCP: a StableBrowse API key from the settings page
-- For local Browser MCP: Node.js 20 or newer, a StableBrowse MCP checkout or package, and CloakBrowser available in the environment
+- For local Browser MCP: Node.js 20 or newer, a StableBrowse MCP checkout or package, and the StableBrowse browser runtime available in the environment
 
 ## Hosted Browser MCP
 
@@ -147,7 +147,7 @@ In a typical run the agent should:
 | --- | --- |
 | No tools appear | Confirm the MCP command path points to `dist/index.js` and `npm run build` completed. |
 | Hosted MCP returns 401 | Confirm the request has `Authorization: Bearer sb_live_...` and the key has not been revoked. |
-| Browser does not launch | Confirm Node 20+, CloakBrowser availability, and permissions for the runtime environment. |
+| Browser does not launch | Confirm Node 20+, StableBrowse browser runtime availability, and permissions for the runtime environment. |
 | Site blocks or challenges | Try a proxy, persistent profile, or humanize mode. Some websites may still block automation. |
 | Agent loops on snapshots | Encourage `extract`, `content.get_markdown`, and `knowledge` before broad snapshots. |
 | Ref click fails | Take a fresh `snapshot`, use `snapshot` with `contains`/`roles`, or use `interact.find`. |
