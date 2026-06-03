@@ -1,0 +1,144 @@
+---
+title: "Browser MCP tools"
+description: "The 17 tools exposed by StableBrowse MCP and how agents should choose between them."
+---
+
+StableBrowse MCP exposes 17 tools: 8 direct tools and 9 compound tools.
+
+<Note>
+  The important rule is not "use fewer tools." The important rule is "use the right tool first." The descriptions below are written as routing guidance for agents.
+</Note>
+
+## Direct tools
+
+Direct tools are the fast path for common browser work.
+
+| Tool | Use when | Prefer instead |
+| --- | --- | --- |
+| `create_session` | Starting the browser. Usually call once at the beginning. | `session` only manages sessions after creation. |
+| `navigate` | Going to a known URL in the active page. | `page.new` only when a new tab is needed. |
+| `snapshot` | Discovering visible controls and refs for actions. | `content` or `extract` for reading long content. |
+| `screenshot` | Visual layout, images, canvas, charts, or pixel verification. | `snapshot`, `content`, or `extract` for text/control tasks. |
+| `click` | Clicking one known ref from the latest snapshot. | `interact.find` for target-by-text clicks. |
+| `fill` | Filling one known input ref. | `fill_form` for multiple fields. |
+| `fill_form` | Filling several fields from one snapshot. | `fill` only for a single field. |
+| `evaluate` | Custom JavaScript when typed tools cannot answer. | `extract` or `content` for normal page reading. |
+
+## Compound tools
+
+Compound tools group related actions behind an `action` parameter.
+
+| Tool | Best for | Common actions |
+| --- | --- | --- |
+| `session` | Session lifecycle, stealth debugging, humanization, saving state. | `list`, `select`, `destroy`, `stealth_status`, `set_humanize`, `save_state` |
+| `page` | Tabs, viewport size, iframe discovery. | `list`, `select`, `new`, `close`, `resize`, `list_frames` |
+| `history` | Waiting and navigation recovery. | `go_back`, `go_forward`, `reload`, `wait_for`, `scroll_to_text`, `wait` |
+| `interact` | Advanced page actions beyond direct click/fill. | `find`, `choose`, `fill_form`, `press_key`, `scroll`, `handle_dialog` |
+| `content` | Reading mostly-static content. | `get_markdown`, `get_text`, `get_html`, `extract_links`, `read_pdf`, `save_pdf` |
+| `extract` | Structured understanding of the current page. | `page_summary`, `cards`, `section`, `search_page`, `form_fields`, `choice_groups`, `query_elements`, `table`, `structured` |
+| `network` | Debugging API calls and client-side failures. | `list`, `get`, `intercept`, `console_logs` |
+| `storage` | Cookies, localStorage, sessionStorage. | `list_cookies`, `set_cookie`, `clear_cookies`, `get_storage`, `set_storage` |
+| `knowledge` | Site-specific hints and deterministic strategies. | `sites`, `lookup`, `flows`, `flow`, `amazon_products` |
+
+## Tool selection recipes
+
+### Read a docs page
+
+```text
+create_session -> navigate -> content.get_markdown -> final answer
+```
+
+Use `extract.section` when the user asks for a named section. Use `search_page` when looking for a phrase.
+
+### Extract search results or listings
+
+```text
+create_session -> navigate -> extract.cards -> final answer
+```
+
+Use `maxCards` to keep output small. Use `contains` to filter cards.
+
+### Fill a form
+
+```text
+create_session -> navigate -> extract.form_fields -> snapshot -> fill_form
+```
+
+Use `submitRef` or `submitKey` on `fill_form` when possible.
+
+### Click a known button or link
+
+```text
+snapshot with contains/roles -> click
+```
+
+If the target is obvious by text but you do not have a ref, use `interact.find`.
+
+### Configure product filters or options
+
+```text
+extract.choice_groups -> interact.choose -> extract/page_summary or snapshot
+```
+
+Use `interact.choose` for multiple choices in one call.
+
+### Debug a broken page
+
+```text
+network.console_logs -> network.list -> screenshot if visual evidence is needed
+```
+
+Use `storage` only if cookies or local/session storage are part of the issue.
+
+### Known site task
+
+```text
+navigate -> knowledge.lookup -> targeted extract/interact calls
+```
+
+For Amazon product, deal, ranking, or price-filter tasks, use `knowledge.amazon_products` first.
+
+## Avoid these patterns
+
+- Do not use screenshots for ordinary text extraction.
+- Do not call `fill` repeatedly for a multi-field form.
+- Do not use broad `snapshot` on huge pages if `extract.cards`, `extract.section`, or `content.get_markdown` can answer.
+- Do not write custom `evaluate` scripts until typed tools fail.
+- Do not open new tabs unless the task needs multiple pages.
+- Do not use fixed waits before trying `history.wait_for`.
+
+## Parameter notes
+
+| Parameter | Where it appears | Why it matters |
+| --- | --- | --- |
+| `pageId` | Most tools | Targets a non-active tab/page. Omit for active page. |
+| `ref` | Interaction tools | Comes from `snapshot`; stale refs require a fresh snapshot. |
+| `maxChars` | Content/snapshot tools | Keeps outputs inside useful token budgets. |
+| `maxCards` / `limit` | `extract.cards`, `page_summary` | Prevents oversized result lists. |
+| `selector` | Snapshot/extract/content tools | Narrows work to a DOM subtree. |
+| `contains` | Snapshot/content/extract tools | Focuses output around relevant text. |
+
+## Full tool list
+
+### Direct
+
+- `create_session`
+- `navigate`
+- `snapshot`
+- `screenshot`
+- `click`
+- `fill`
+- `fill_form`
+- `evaluate`
+
+### Compound
+
+- `session`
+- `page`
+- `history`
+- `interact`
+- `content`
+- `extract`
+- `network`
+- `storage`
+- `knowledge`

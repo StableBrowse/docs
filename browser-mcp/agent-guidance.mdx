@@ -1,0 +1,128 @@
+---
+title: "Agent guidance"
+description: "Prompting and tool-selection guidance for agents using StableBrowse Browser MCP."
+---
+
+Agents perform best when they treat Browser MCP as a set of high-level browser skills, not as raw browser automation.
+
+## Recommended system guidance
+
+Use guidance like this in your MCP client or agent harness:
+
+```text
+You are a browsing agent using StableBrowse MCP.
+
+Start with create_session, then navigate.
+For reading pages, prefer content.get_markdown or extract before snapshot.
+Use snapshot when you need refs for visible controls.
+Use click/fill/fill_form for ref-based actions.
+Use interact.find when you know the target text/role but do not have a ref.
+Use extract.cards for products, listings, releases, and search results.
+Use extract.form_fields before filling forms.
+Use extract.choice_groups and interact.choose for filters and configurators.
+Use knowledge.lookup on known sites before broad exploration.
+Use knowledge.amazon_products for Amazon product/deal/ranking tasks.
+Use screenshots only for visual verification or content that is not represented as text.
+Use evaluate only when typed tools cannot answer.
+When the task is satisfied, answer and stop calling tools.
+```
+
+## Decision tree
+
+### Do you need to read content?
+
+Use:
+
+- `content.get_markdown` for docs, articles, blogs, and readable pages
+- `extract.section` for a known heading
+- `extract.search_page` for a phrase
+- `extract.cards` for listings/results/products/releases
+- `extract.table` for tables
+- `content.read_pdf` for PDFs
+
+Avoid starting with `snapshot` unless you need clickable refs.
+
+### Do you need to act on controls?
+
+Use:
+
+- `snapshot` to discover refs
+- `click` for one ref
+- `fill` for one field
+- `fill_form` for several fields
+- `interact.find` when target text/role is known but refs are not
+- `interact.choose` for multiple visible choices
+
+After actions that navigate or update the page, call `history.wait_for`.
+
+### Do you need to debug?
+
+Use:
+
+- `network.console_logs` for JavaScript errors
+- `network.list` and `network.get` for API traffic
+- `storage` for cookies/localStorage/sessionStorage
+- `screenshot` for visual verification
+- `session.stealth_status` for fingerprint or detection checks
+
+## Common failure modes
+
+| Failure mode | Better behavior |
+| --- | --- |
+| Agent loops over huge snapshots | Use `extract.page_summary`, `extract.cards`, `extract.section`, or `content.get_markdown`. |
+| Agent fills one field per turn | Use `fill_form` or `interact.fill_form`. |
+| Agent clicks stale refs | Take a fresh `snapshot` after DOM changes. |
+| Agent guesses selectors | Use `snapshot`, `extract.find`, `interact.find`, or `knowledge.lookup`. |
+| Agent uses screenshots for text | Use `content` or `extract` first. |
+| Agent waits blindly | Use `history.wait_for` with text, selector, URL, or load state. |
+| Agent writes JavaScript too early | Use typed extraction tools first; reserve `evaluate` for gaps. |
+
+## Good prompts for testing
+
+These are useful smoke tests for Browser MCP:
+
+```text
+Open the Playwright npm package page and report the current version, weekly downloads, license, repository, and install command.
+```
+
+```text
+Open the Python asyncio task docs and explain TaskGroup with two behavior notes from the official page.
+```
+
+```text
+Open Hacker News and return the top 3 visible stories with titles, points, and comment counts.
+```
+
+```text
+Open the GitHub releases page for microsoft/playwright and report the latest release tag plus two highlighted changes.
+```
+
+```text
+Open the Stripe idempotent requests docs and summarize how idempotency keys work, including key length guidance and pruning.
+```
+
+```text
+Search arXiv for "browser automation agents" and return the title and authors of the first result.
+```
+
+## Evaluating a run
+
+Check more than the final answer. A good run should have:
+
+- few turns
+- low tool error count
+- no repeated broad screenshots
+- no unnecessary custom JavaScript
+- targeted extraction before broad snapshots
+- successful waits after navigation or submission
+- a final answer only after the requested data is collected
+
+For benchmark logs, track:
+
+| Metric | Why it matters |
+| --- | --- |
+| Turns | Measures agent planning efficiency. |
+| Wall time | Measures user-visible latency. |
+| Input tokens | Shows whether tools are returning too much data. |
+| Tool errors | Reveals bad tool routing or unclear schemas. |
+| Final answer correctness | Confirms the task was actually completed. |

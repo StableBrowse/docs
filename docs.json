@@ -34,6 +34,16 @@
             "pages": ["sdks/python", "sdks/typescript"]
           },
           {
+            "group": "Browser MCP",
+            "pages": [
+              "browser-mcp/overview",
+              "browser-mcp/quickstart",
+              "browser-mcp/architecture",
+              "browser-mcp/tools",
+              "browser-mcp/agent-guidance"
+            ]
+          },
+          {
             "group": "Reference",
             "pages": ["errors"]
           }

@@ -1,0 +1,115 @@
+---
+title: "Browser MCP architecture"
+description: "How StableBrowse MCP turns LLM tool calls into reliable stealth browser actions."
+---
+
+StableBrowse MCP is a browser automation server exposed through the Model Context Protocol. The LLM never talks to Playwright or CDP directly. It calls typed MCP tools, and the server handles session state, validation, browser control, and result formatting.
+
+```text
+MCP client / LLM
+  -> StableBrowse hosted MCP endpoint
+  -> API-key auth
+  -> StableBrowse MCP server
+  -> tool registry
+  -> session manager
+  -> page wrapper
+  -> browser pool
+  -> stealth Chromium engine
+```
+
+## Main components
+
+| Component | Responsibility |
+| --- | --- |
+| Entry point | Parses config, chooses stdio or HTTP transport, starts the MCP server, and handles shutdown. |
+| API-key auth | Validates hosted HTTP `/mcp` requests using the same `sb_live_...` keys created in StableBrowse settings. |
+| MCP server | Registers tools, validates parameters, serializes tool calls, resolves the active session/page, and formats results. |
+| Session manager | Creates and tracks browser sessions, active session selection, and session limits. |
+| Session | Owns a browser context, pages, selected page, and session-level settings. |
+| Page wrapper | Stores page state such as snapshots, network requests, console logs, and mutation status. |
+| Browser pool | Reuses stealth browser processes by fingerprint while preserving isolation across different fingerprints. |
+| CDP layer | Provides low-level accessibility tree extraction, DOM node resolution, mouse/keyboard dispatch, screenshots, and PDF support. |
+
+## Tool execution path
+
+Every MCP tool call follows the same high-level path:
+
+1. The MCP client sends a JSON-RPC `tools/call`.
+2. The server acquires a mutex so shared browser state is not mutated concurrently.
+3. Zod validates the input schema.
+4. The active session and page are resolved unless the tool does not require a session.
+5. The tool handler runs browser work through Playwright, CDP, or both.
+6. The page snapshot cache is invalidated if the DOM changed.
+7. The result is returned as text, image, or mixed MCP content.
+
+## Playwright and CDP
+
+StableBrowse uses both Playwright and Chrome DevTools Protocol:
+
+| Layer | Used for |
+| --- | --- |
+| Playwright | Browser lifecycle, contexts, pages, locators, high-level waits, file uploads, and fallback actions. |
+| CDP | Accessibility snapshots, backend node IDs, precise bounding boxes, raw input dispatch, screenshots, and low-level DOM operations. |
+
+This split gives agents a human-readable page model while still allowing precise actions on real browser nodes.
+
+## Snapshot refs
+
+The `snapshot` tool extracts the accessibility tree and assigns stable refs like `[ref=e12]` to interactive elements.
+
+Those refs are consumed by:
+
+- `click`
+- `fill`
+- `fill_form`
+- `interact.hover`
+- `interact.select_option`
+- `interact.drag`
+- `interact.upload_file`
+- `screenshot` for element screenshots
+
+After navigation or DOM mutation, the cached snapshot is invalidated so the next snapshot reflects the current page.
+
+## Why compound tools exist
+
+The implementation contains many browser operations, but the MCP surface exposes 17 tools:
+
+- direct tools for the common fast path
+- compound tools for action families
+
+This reduces tool-list noise while preserving coverage. For example, instead of exposing separate top-level tools for cookies, local storage, and session storage, the agent sees one `storage` tool with actions.
+
+## Knowledge graphs
+
+The `knowledge` tool lets agents consult bundled site knowledge before broad exploration. It can return:
+
+- indexed sites
+- relevant page nodes, regions, actions, and selectors
+- known flow graphs
+- deterministic site strategies, such as Amazon product extraction
+
+Knowledge graphs are optional. Agents can still browse any site with the generic tools.
+
+## Safety and isolation
+
+Browser MCP is designed for controlled automation:
+
+- each session has isolated browser context state
+- optional persistent profiles can preserve login state
+- proxies and fingerprints can be set per session
+- session/page limits prevent unbounded browser growth
+- all parameters are schema-validated
+- tool calls are serialized to avoid race conditions
+
+## HTTP mode
+
+HTTP mode exposes:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /mcp` | MCP streamable HTTP endpoint |
+| `GET /health` | Liveness check |
+
+Use HTTP mode when the MCP server needs to run as a local service or inside an environment where stdio is not convenient.
+
+Hosted HTTP deployments should run with DynamoDB API-key auth enabled. The server hashes the incoming bearer key, looks it up in the StableBrowse API-key table, rejects revoked keys, and binds the MCP session to the authenticated business.

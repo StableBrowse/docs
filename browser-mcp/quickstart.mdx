@@ -1,0 +1,153 @@
+---
+title: "Browser MCP quickstart"
+description: "Install StableBrowse MCP, connect it to an MCP client, and run your first browser task."
+---
+
+## Requirements
+
+- An MCP client such as Claude Desktop, Cursor, Codex, or your own MCP runner
+- For hosted Browser MCP: a StableBrowse API key from the settings page
+- For local Browser MCP: Node.js 20 or newer, a StableBrowse MCP checkout or package, and CloakBrowser available in the environment
+
+## Hosted Browser MCP
+
+Hosted Browser MCP is the recommended setup for end users. The browser runs in StableBrowse cloud; your LLM app only needs the MCP endpoint and your StableBrowse API key.
+
+1. Sign in to StableBrowse.
+2. Open the settings page.
+3. Create an API key.
+4. Add the hosted Browser MCP endpoint to your MCP client.
+5. Send the API key as a bearer token.
+
+The client should authenticate every MCP request with:
+
+```http
+Authorization: Bearer sb_live_...
+```
+
+<Note>
+  Your LLM key stays with your LLM app or model provider. The StableBrowse API key authenticates access to the hosted browser.
+</Note>
+
+## Install
+
+From the MCP project:
+
+```bash
+npm install
+npm run build
+```
+
+For package-based usage:
+
+```bash
+npx stablebrowse-mcp
+```
+
+## Run over stdio
+
+Most desktop MCP clients use stdio:
+
+```bash
+node dist/index.js
+```
+
+Example MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "stablebrowse": {
+      "command": "node",
+      "args": ["/absolute/path/to/stablebrowse-mcp/dist/index.js"],
+      "env": {}
+    }
+  }
+}
+```
+
+Then ask the client something like:
+
+```text
+Open Hacker News and tell me the title, points, and comment count for the top 3 stories.
+```
+
+## Run as an HTTP endpoint
+
+For local integration tests:
+
+```bash
+node dist/index.js --transport http --host 127.0.0.1 --port 3000
+```
+
+Endpoints:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST http://127.0.0.1:3000/mcp` | Streamable HTTP MCP endpoint |
+| `GET http://127.0.0.1:3000/health` | Health check |
+
+For a hosted deployment that accepts dashboard-created StableBrowse API keys:
+
+```bash
+STABLEBROWSE_TRANSPORT=http \
+STABLEBROWSE_HOST=0.0.0.0 \
+STABLEBROWSE_AUTH_MODE=dynamodb \
+STABLEBROWSE_API_KEY_TABLE=stablebrowse-api-keys \
+node dist/index.js
+```
+
+## Common options
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--transport <stdio\|http>` | MCP transport. `sse` is accepted as an alias for `http`. | `stdio` |
+| `--knowledge-graph-dir <path>` | Override bundled knowledge graph index path. | `data/knowledgegraphindex` |
+| `--auth-mode <none\|static\|dynamodb>` | Auth mode for HTTP `/mcp` requests. | `none` |
+| `--api-key <key>` | Allowed bearer key for local `static` auth tests. | - |
+| `--api-key-table <table>` | DynamoDB API-key table for hosted `dynamodb` auth. | `stablebrowse-api-keys` |
+| `--auth-cache-ttl <ms>` | Time to cache DynamoDB auth lookups. | `60000` |
+| `--host <host>` | Host for HTTP transport. Use `0.0.0.0` to expose on the network. | `127.0.0.1` |
+| `--port <number>` | HTTP port. | `3000` |
+| `--headless <true\|false>` | Run browser headless. | `true` |
+| `--headed` | Shortcut for `--headless false`. | - |
+| `--proxy <url>` | Default proxy URL. Supports HTTP, HTTPS, and SOCKS5. | - |
+| `--fingerprint <seed>` | Default fingerprint seed. | random |
+| `--humanize` | Enable human-like mouse and keyboard behavior by default. | `false` |
+| `--human-preset <default\|careful>` | Humanization preset. | `default` |
+| `--log-level <debug\|info\|warn\|error>` | Server log level. | `info` |
+
+Environment variables use the `STABLEBROWSE_*` prefix. For example:
+
+```bash
+STABLEBROWSE_KNOWLEDGE_GRAPH_DIR=/path/to/knowledgegraphindex
+STABLEBROWSE_PROXY=http://user:pass@host:port
+STABLEBROWSE_LOG_LEVEL=warn
+STABLEBROWSE_AUTH_MODE=dynamodb
+STABLEBROWSE_API_KEY_TABLE=stablebrowse-api-keys
+```
+
+## First successful run
+
+In a typical run the agent should:
+
+1. call `create_session`
+2. call `navigate`
+3. call `content.get_markdown`, `extract.page_summary`, or `snapshot`
+4. use `click`, `fill`, `fill_form`, or `interact` if action is needed
+5. return the final answer
+
+<Tip>
+  If an agent takes screenshots for ordinary text tasks, improve its system prompt. Screenshots are useful for visual verification, but text and structured extraction tools are cheaper and usually more reliable.
+</Tip>
+
+## Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| No tools appear | Confirm the MCP command path points to `dist/index.js` and `npm run build` completed. |
+| Hosted MCP returns 401 | Confirm the request has `Authorization: Bearer sb_live_...` and the key has not been revoked. |
+| Browser does not launch | Confirm Node 20+, CloakBrowser availability, and permissions for the runtime environment. |
+| Site blocks or challenges | Try a proxy, persistent profile, or humanize mode. Some websites may still block automation. |
+| Agent loops on snapshots | Encourage `extract`, `content.get_markdown`, and `knowledge` before broad snapshots. |
+| Ref click fails | Take a fresh `snapshot`, use `snapshot` with `contains`/`roles`, or use `interact.find`. |

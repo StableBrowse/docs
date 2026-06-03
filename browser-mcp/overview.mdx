@@ -1,0 +1,89 @@
+---
+title: "Browser MCP"
+description: "Run StableBrowse as an MCP server so LLM agents can control a real stealth browser through typed tools."
+---
+
+StableBrowse Browser MCP exposes a real browser to any Model Context Protocol client. It is meant for agents that need to browse, click, fill forms, extract page data, read documents, inspect network traffic, and use site-specific knowledge without building browser automation code.
+
+For hosted usage, create an API key from the StableBrowse settings page, add the hosted MCP URL to your LLM app, and send the key as a bearer token. StableBrowse runs the browser in the cloud and returns MCP tool results to your agent.
+
+<CardGroup cols={2}>
+  <Card title="One MCP surface" icon="plug">
+    Agents get 17 typed tools instead of raw browser APIs. The tools are designed around common browsing jobs.
+  </Card>
+  <Card title="Stealth browser sessions" icon="shield">
+    Sessions run on CloakBrowser with fingerprinting, proxy support, persistent profiles, and optional human-like input.
+  </Card>
+  <Card title="Ref-based interaction" icon="cursor">
+    `snapshot` returns accessibility refs like `[ref=e12]`; `click`, `fill`, and `fill_form` act on those refs.
+  </Card>
+  <Card title="Structured extraction" icon="table">
+    `extract`, `content`, and `knowledge` let agents read data without scrolling through huge snapshots.
+  </Card>
+</CardGroup>
+
+## When to use Browser MCP
+
+Use Browser MCP when you are building or testing an agent that needs direct browser control:
+
+- navigating public websites
+- extracting cards, tables, listings, docs, PDFs, or links
+- completing forms and configurators
+- working across multiple tabs or sessions
+- debugging sites with screenshots, console logs, storage, or network requests
+- giving Claude Desktop, Cursor, Codex, or another MCP client a browser tool
+
+If you want StableBrowse to run the whole natural-language task for you, use the StableBrowse API documented in the main quickstart. Use Browser MCP when your own LLM agent should decide which browser tools to call.
+
+## What agents see
+
+The MCP server exposes 17 tools:
+
+- 8 direct tools for high-frequency actions: `create_session`, `navigate`, `snapshot`, `screenshot`, `click`, `fill`, `fill_form`, `evaluate`
+- 9 compound tools for broader workflows: `session`, `page`, `history`, `interact`, `content`, `extract`, `network`, `storage`, `knowledge`
+
+The direct tools are the fast path. The compound tools are action-based and group related browser operations so agents do not need dozens of tiny tools.
+
+<Note>
+  Browser MCP exposes one stable tool surface. End users do not choose between internal browser modes.
+</Note>
+
+## Core workflow
+
+Most agent runs follow this shape:
+
+```text
+create_session
+  -> navigate
+  -> extract or content for reading
+  -> snapshot for refs when action is needed
+  -> click/fill/fill_form/interact
+  -> history.wait_for after navigation or submission
+  -> final answer
+```
+
+For known sites, the agent can call `knowledge.lookup` before broad exploration. For Amazon product tasks, `knowledge.amazon_products` is the preferred path.
+
+## Design goals
+
+- **Typed decisions over raw browser commands**: agents should choose from clear tools, not guess CLI or Playwright syntax.
+- **Low-token reading paths**: use markdown, cards, sections, tables, and page search before broad snapshots.
+- **Reliable interactions**: refs map to browser nodes and are clicked/filled through Playwright and CDP.
+- **Debuggability**: screenshots, network, console logs, storage, and session state are available when needed.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="play" href="/browser-mcp/quickstart">
+    Install and run StableBrowse MCP over stdio or HTTP.
+  </Card>
+  <Card title="Tools" icon="wrench" href="/browser-mcp/tools">
+    Understand every exposed tool and when agents should call it.
+  </Card>
+  <Card title="Architecture" icon="diagram-project" href="/browser-mcp/architecture">
+    How the MCP server, sessions, pages, browser pool, and CDP layer fit together.
+  </Card>
+  <Card title="Agent guidance" icon="route" href="/browser-mcp/agent-guidance">
+    Recommended tool-selection rules for reliable agents.
+  </Card>
+</CardGroup>
