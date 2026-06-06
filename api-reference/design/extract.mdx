@@ -20,6 +20,10 @@ For an overview of what each extractor returns, see [Design extraction](/concept
   Subset of extractors to run. Valid values: `"images"`, `"fonts"`, `"colors"`, `"icons"`, `"tokens"`, `"logo"`. Omit (or pass an empty array) to run all six. Unknown names are silently dropped; if the resulting list is empty the request returns 400.
 </ParamField>
 
+<ParamField body="enableIpRotation" type="boolean">
+  Optional. Defaults to `false`. When `true`, the browser session is launched through the residential proxy/IP rotation pool. Use this for sites that rate-limit, geo-vary, or block normal cloud traffic.
+</ParamField>
+
 ## Response — `202 Accepted`
 
 <ResponseField name="taskId" type="string">
@@ -36,6 +40,10 @@ For an overview of what each extractor returns, see [Design extraction](/concept
 
 <ResponseField name="extractors" type="string[]">
   The extractors that will actually run (echoed back so callers know exactly what to expect on the result).
+</ResponseField>
+
+<ResponseField name="enableIpRotation" type="boolean">
+  Echoes whether this extraction was submitted with IP rotation enabled.
 </ResponseField>
 
 <ResponseField name="createdAt" type="string (ISO 8601)">
@@ -55,6 +63,7 @@ task = client.design.run(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["colors", "fonts", "logo"],
+    enable_ip_rotation=True,
 )
 colors = task.design["results"]["colors"]["colors"]
 fonts  = task.design["results"]["fonts"]["fonts"]
@@ -70,6 +79,7 @@ const task = await client.design.run({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["colors", "fonts", "logo"],
+  enableIpRotation: true,
 });
 const colors = task.design!.results.colors as { colors: Array<{ hex: string; role: string }> };
 const fonts  = task.design!.results.fonts  as { fonts:  Array<{ family: string; usage: string }> };
@@ -85,7 +95,8 @@ TASK_ID=$(curl -s "$API_BASE/design/extract" -X POST \
   -d '{
     "url": "https://www.figma.com/",
     "endUserId": "alice",
-    "extractors": ["colors", "fonts", "logo"]
+    "extractors": ["colors", "fonts", "logo"],
+    "enableIpRotation": true
   }' | jq -r .taskId)
 
 # 2. Poll until terminal
@@ -112,6 +123,7 @@ submission = client.design.submit(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["colors", "fonts"],
+    enable_ip_rotation=True,
 )
 # ... later ...
 task = client.tasks.get(submission.task_id)
@@ -124,6 +136,7 @@ const submission = await client.design.submit({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["colors", "fonts"],
+  enableIpRotation: true,
 });
 // ... later ...
 const task = await client.tasks.get(submission.taskId);
@@ -141,6 +154,7 @@ if (task.status === "completed") console.log(task.design?.results.colors);
   "sessionId": "a31d5e9f-...",
   "status": "pending",
   "extractors": ["colors", "fonts", "logo"],
+  "enableIpRotation": true,
   "createdAt": "2026-05-04T22:10:18Z"
 }
 ```

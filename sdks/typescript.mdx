@@ -98,6 +98,7 @@ const task = await client.design.run({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["colors", "fonts", "logo"], // omit to run all six
+  enableIpRotation: true,                  // optional
 });
 console.log(task.design?.results.colors);
 ```
@@ -108,6 +109,7 @@ console.log(task.design?.results.colors);
 const submission = await client.design.submit({
   url: "https://www.figma.com/",
   endUserId: "alice",
+  enableIpRotation: true,
 });
 // ... later — design tasks ride the same task record as agent tasks
 const task = await client.tasks.get(submission.taskId);
@@ -121,12 +123,13 @@ const task = await client.design.run({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["images", "fonts", "colors", "icons", "tokens", "logo"],
+  enableIpRotation: true,
   pollIntervalMs: 2000,
   pollTimeoutMs: 300_000,
 });
 ```
 
-`task.design` carries the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
+`enableIpRotation` defaults to `false`. Set it to `true` to route the extraction through the residential proxy/IP rotation pool. `task.design` carries the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
 
 ## End-user credentials
 

@@ -22,6 +22,10 @@ This endpoint is identical to [`POST /v1/design/extract`](/api-reference/design/
   Opaque identifier for the user this extraction runs on behalf of. ≤ 256 characters.
 </ParamField>
 
+<ParamField body="enableIpRotation" type="boolean">
+  Optional. Defaults to `false`. When `true`, the browser session is launched through the residential proxy/IP rotation pool.
+</ParamField>
+
 <Info>
   The body's `extractors` field, if passed, is **ignored** on this endpoint — the path parameter wins.
 </Info>
@@ -43,6 +47,7 @@ task = client.design.run(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["colors"],
+    enable_ip_rotation=True,
 )
 print(task.design["results"]["colors"]["colors"][:3])
 ```
@@ -52,6 +57,7 @@ const task = await client.design.run({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["colors"],
+  enableIpRotation: true,
 });
 console.log(task.design?.results.colors);
 ```
@@ -60,7 +66,7 @@ console.log(task.design?.results.colors);
 curl "$API_BASE/design/extract/colors" -X POST \
   -H "Authorization: Bearer $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{ "url": "https://www.figma.com/", "endUserId": "alice" }'
+  -d '{ "url": "https://www.figma.com/", "endUserId": "alice", "enableIpRotation": true }'
 ```
 </CodeGroup>
 
@@ -70,6 +76,7 @@ curl "$API_BASE/design/extract/colors" -X POST \
   "sessionId": "a31d5e9f-...",
   "status": "pending",
   "extractors": ["colors"],
+  "enableIpRotation": true,
   "createdAt": "2026-05-04T22:11:02Z"
 }
 ```

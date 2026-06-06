@@ -8,7 +8,7 @@ description: "Pull a site's images, fonts, colors, icons, design tokens, and log
 Point us at a public URL; we render the page in a real browser and return its visual assets as JSON. No agent, no LLM in the loop — these are deterministic extractors that walk the loaded DOM, the computed styles, and the loaded stylesheets.
 
 ```
-POST /v1/design/extract  { url, endUserId, extractors? }   →  { taskId, status: "pending" }
+POST /v1/design/extract  { url, endUserId, extractors?, enableIpRotation? }   →  { taskId, status: "pending" }
                                                                        ↓
                                                               (typically 5-15 seconds)
                                                                        ↓
@@ -16,6 +16,10 @@ GET /v1/tasks/{taskId}                                        →  { status: "co
 ```
 
 Same `Authorization: Bearer sb_live_...` header as the rest of the API — see [Authentication](/authentication). Same monthly task quota — every extraction counts as one task.
+
+<Info>
+  `enableIpRotation` is optional and defaults to `false`. Set it to `true` when you want this extraction routed through the residential proxy/IP rotation pool, for example on sites that rate-limit or vary content by IP.
+</Info>
 
 ## The six extractors
 
@@ -102,6 +106,7 @@ task = client.design.run(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["colors", "fonts", "logo"],  # omit to run all six
+    enable_ip_rotation=True,                 # optional
 )
 print(task.design["results"]["colors"]["colors"][:3])
 ```
@@ -114,6 +119,7 @@ const task = await client.design.run({
   url: "https://www.figma.com/",
   endUserId: "alice",
   extractors: ["colors", "fonts", "logo"], // omit to run all six
+  enableIpRotation: true,                   // optional
 });
 console.log(task.design?.results.colors);
 ```
@@ -131,4 +137,4 @@ Pricing for high-volume extraction beyond the free tier is handled per-business.
 
 - **Logged-in pages.** Extraction runs in a fresh browser with no cookies, so you'll get the page as an unauthenticated visitor sees it. Extracting the *signed-in* version of a SaaS dashboard isn't supported in v1.
 - **Heavy SPAs that hydrate after `networkidle`.** We do a lazy-load scroll pass before extracting, but a small number of pages keep loading content for 30+ seconds. If you see empty `images[]` arrays on a page that's clearly image-rich, the page may be deferring loads in a way our scroll pass misses.
-- **Pages behind aggressive bot mitigation.** Cloudflare challenges, hCaptcha walls, etc. are not bypassed — the worker uses a residential proxy by default, but if the page hard-refuses, the task will fail. Open an issue with the URL if you hit this.
+- **Pages behind aggressive bot mitigation.** Cloudflare challenges, hCaptcha walls, etc. are not bypassed. Try `enableIpRotation: true` to route the extraction through the residential proxy/IP rotation pool; if the page hard-refuses, the task will still fail. Open an issue with the URL if you hit this.

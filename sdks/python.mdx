@@ -94,6 +94,7 @@ task = client.design.run(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["colors", "fonts", "logo"],  # omit to run all six
+    enable_ip_rotation=True,                 # optional
 )
 print(task.design["results"]["colors"]["colors"][:3])
 ```
@@ -104,6 +105,7 @@ print(task.design["results"]["colors"]["colors"][:3])
 submission = client.design.submit(
     url="https://www.figma.com/",
     end_user_id="alice",
+    enable_ip_rotation=True,
 )
 # ... later — design tasks ride the same task record as agent tasks
 task = client.tasks.get(submission.task_id)
@@ -118,12 +120,13 @@ task = client.design.run(
     url="https://www.figma.com/",
     end_user_id="alice",
     extractors=["images", "fonts", "colors", "icons", "tokens", "logo"],
+    enable_ip_rotation=True,
     poll_interval=2,
     poll_timeout=300,
 )
 ```
 
-`task.design` is the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
+`enable_ip_rotation` defaults to `False`. Set it to `True` to route the extraction through the residential proxy/IP rotation pool. `task.design` is the raw JSON the server returns — see the [response schema](/api-reference/design/extract#get-task-response-completed). Asset URLs are signed S3 links valid for 7 days; re-submit the task to refresh.
 
 ## End-user credentials
 
